@@ -28,6 +28,8 @@ truckpark/backend/uploads/
 # Local tooling/state
 .agents/
 .refact/
+cloudflared.exe
+cloudflared.log
 
 # Archives and OS files
 *.zip
