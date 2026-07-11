@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.egg
+
+# Node
+node_modules/
+.next/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+
+# Local/runtime data
+uploads/
+truckpark/backend/uploads/
+*.sqlite3
+*.db
+
+# Local tooling/state
+.agents/
+.refact/
+
+# Archives and OS files
+*.zip
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

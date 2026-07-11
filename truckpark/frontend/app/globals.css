@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  @apply bg-yard-50 text-yard-900 antialiased;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid theme("colors.signal.DEFAULT");
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Truck-number style readout used across entry/exit/admin screens */
+.plate {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.btn-primary {
+  @apply bg-signal text-yard-950 font-semibold rounded hover:bg-signal-dark active:scale-[0.99] transition disabled:opacity-50 disabled:pointer-events-none;
+}
+
+.btn-secondary {
+  @apply bg-yard-100 text-yard-900 font-medium rounded hover:bg-yard-100/80 active:scale-[0.99] transition;
+}
+
+.card {
+  @apply bg-white rounded-lg shadow-card border border-yard-100;
+}
+
+.input {
+  @apply w-full rounded border border-yard-100 bg-white px-3 py-2.5 text-base text-yard-900 placeholder:text-yard-500/60 focus:border-signal focus:ring-1 focus:ring-signal outline-none transition;
+}
