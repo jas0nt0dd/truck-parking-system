@@ -5,9 +5,15 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
 
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const apiBaseUrl = apiOrigin ? `${apiOrigin}/api/v1` : "/api/v1";
+
 export const api = axios.create({
-  baseURL: "/api/v1",
-  headers: { "Content-Type": "application/json" },
+  baseURL: apiBaseUrl,
+  headers: {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+  },
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -25,7 +31,11 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshToken) return null;
 
   try {
-    const { data } = await axios.post("/api/v1/auth/refresh", { refresh_token: refreshToken });
+    const { data } = await axios.post(
+      `${apiBaseUrl}/auth/refresh`,
+      { refresh_token: refreshToken },
+      { headers: { "ngrok-skip-browser-warning": "true" } }
+    );
     setTokens(data.access_token, data.refresh_token, data.user);
     return data.access_token;
   } catch {
