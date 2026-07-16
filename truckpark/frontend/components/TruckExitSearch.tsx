@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
@@ -13,7 +13,7 @@ export function TruckExitSearch({ onSelect }: { onSelect: (session: SessionSearc
   const [results, setResults] = useState<SessionSearchItem[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  let debounceTimer: ReturnType<typeof setTimeout>;
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function runSearch(value: string) {
     if (value.trim().length < 2) {
@@ -34,8 +34,10 @@ export function TruckExitSearch({ onSelect }: { onSelect: (session: SessionSearc
 
   function handleChange(value: string) {
     setQuery(value);
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => runSearch(value), 350);
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => runSearch(value), 350);
   }
 
   return (
