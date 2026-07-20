@@ -6,7 +6,7 @@ Uses pydantic-settings so config is validated on startup -- the app
 will fail fast with a clear error instead of crashing later at runtime.
 """
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 from pydantic import AnyUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,6 +46,7 @@ class Settings(BaseSettings):
 
     # --- CORS ---
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGIN_REGEX: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
