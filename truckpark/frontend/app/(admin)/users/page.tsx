@@ -9,6 +9,7 @@ import {
   createUser,
   setUserStatus,
   resetUserPassword,
+  deleteUser,
   ManagedUser,
 } from "@/lib/admin";
 import { formatDateTime } from "@/lib/utils";
@@ -68,6 +69,16 @@ export default function UsersPage() {
     try {
       const res = await resetUserPassword(u.id);
       setTempPwd({ name: u.name, pwd: res.temporary_password ?? "" });
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    }
+  }
+
+  async function handleDelete(u: ManagedUser) {
+    if (!confirm(`Delete user ${u.name}? This cannot be undone.`)) return;
+    try {
+      await deleteUser(u.id);
+      setUsers((list) => list.filter((x) => x.id !== u.id));
     } catch (err) {
       setError(apiErrorMessage(err));
     }
@@ -162,7 +173,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-yard-500">{formatDateTime(u.created_at)}</td>
                   <td className="px-4 py-3">
-                    {!u.is_root && u.id !== currentUser?.id && (
+                    {u.id !== currentUser?.id && (
                       <div className="flex gap-2">
                         <button onClick={() => toggleStatus(u)} title={u.is_active ? "Disable" : "Enable"} className="rounded p-1.5 text-yard-500 hover:bg-yard-100">
                           {u.is_active ? <ToggleRight size={16} className="text-ok" /> : <ToggleLeft size={16} />}
@@ -170,6 +181,9 @@ export default function UsersPage() {
                         <button onClick={() => handleResetPwd(u)} title="Reset password" className="rounded p-1.5 text-yard-500 hover:bg-yard-100">
                           <KeyRound size={15} />
                         </button>
+                          <button onClick={() => handleDelete(u)} title="Delete user" className="rounded p-1.5 text-red-600 hover:bg-red-50">
+                            Delete
+                          </button>
                       </div>
                     )}
                   </td>

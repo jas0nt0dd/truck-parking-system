@@ -1,0 +1,75 @@
+{
+  "category": "UTILITY",
+  "name": "truck_exit_receipt",
+  "namespace": "49f6d468_8910_4ac5_aa2d_73be4c70cbfa",
+  "languages": [
+    {
+      "id": "1013331044909360",
+      "name": "truck_exit_receipt",
+      "language": "en",
+      "parameter_format": "POSITIONAL",
+      "status": "approved",
+      "rejection_reason": "NONE",
+      "default_variables": null,
+      "code": [
+        {
+          "text": "Truck {{1}} has exited {{2}}.\nEntry time: {{3}}\nExit time: {{4}}\nDuration: {{5}}\nAmount paid: Rs. {{6}}\nPayment mode: {{7}}\nThank you.",
+          "type": "BODY",
+          "example": {
+            "body_text": [
+              [
+                "TN01AB1234",
+                "Robo Truck Yard",
+                "09/07/2026 03:30 PM",
+                "09/07/2026 07:45 PM",
+                "4 hours 15 minutes",
+                "150",
+                "cash"
+              ]
+            ]
+          }
+        },
+        {
+          "text": "Smart Truck Parking",
+          "type": "FOOTER"
+        }
+      ],
+      "gtwy_thread_id": null,
+      "msg91_template_id": 437548,
+      "quality_score": "UNKNOWN",
+      "variables": [
+        "body_1",
+        "body_2",
+        "body_3",
+        "body_4",
+        "body_5",
+        "body_6",
+        "body_7"
+      ],
+      "variable_type": {
+        "body_1": {
+          "type": "text"
+        },
+        "body_2": {
+          "type": "text"
+        },
+        "body_3": {
+          "type": "text"
+        },
+        "body_4": {
+          "type": "text"
+        },
+        "body_5": {
+          "type": "text"
+        },
+        "body_6": {
+          "type": "text"
+        },
+        "body_7": {
+          "type": "text"
+        }
+      }
+    }
+  ],
+  "is_disabled": 0
+}

@@ -1,3 +1,4 @@
+import React from "react";
 import { TruckEntryForm } from "@/components/TruckEntryForm";
 
 export default function EntryPage() {

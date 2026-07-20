@@ -75,6 +75,8 @@ async def mark_paid(
     await db.flush()
     await db.refresh(session, attribute_names=["payment", "truck"])
 
+    await db.commit()
+
     if payload.send_notification:
         background_tasks.add_task(
             _send_exit_notification_bg, session.id, payment.amount, payment.payment_mode.value

@@ -111,6 +111,8 @@ async def create_entry(
     await db.flush()
     await db.refresh(session, attribute_names=["truck"])
 
+    await db.commit()
+
     if payload.send_notification:
         background_tasks.add_task(_send_entry_notification_bg, session.id)
 

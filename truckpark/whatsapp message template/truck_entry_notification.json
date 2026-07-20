@@ -1,0 +1,60 @@
+{
+  "category": "UTILITY",
+  "name": "truck_entry_notification",
+  "namespace": "49f6d468_8910_4ac5_aa2d_73be4c70cbfa",
+  "languages": [
+    {
+      "id": "1502271507862308",
+      "name": "truck_entry_notification",
+      "language": "en",
+      "parameter_format": "POSITIONAL",
+      "status": "approved",
+      "rejection_reason": "NONE",
+      "default_variables": null,
+      "code": [
+        {
+          "text": "Truck {{1}} has entered {{2}}.\nEntry time: {{3}}\nDriver mobile: {{4}}\nThank you.",
+          "type": "BODY",
+          "example": {
+            "body_text": [
+              [
+                "TN01AB1234",
+                "Smart Truck Parking",
+                "09/07/2026 03:30 PM",
+                "9876543210"
+              ]
+            ]
+          }
+        },
+        {
+          "text": "Smart Truck Parking",
+          "type": "FOOTER"
+        }
+      ],
+      "gtwy_thread_id": null,
+      "msg91_template_id": 437539,
+      "quality_score": "UNKNOWN",
+      "variables": [
+        "body_1",
+        "body_2",
+        "body_3",
+        "body_4"
+      ],
+      "variable_type": {
+        "body_1": {
+          "type": "text"
+        },
+        "body_2": {
+          "type": "text"
+        },
+        "body_3": {
+          "type": "text"
+        },
+        "body_4": {
+          "type": "text"
+        }
+      }
+    }
+  ],
+  "is_disabled": 0
+}

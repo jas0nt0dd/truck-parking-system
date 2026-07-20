@@ -107,6 +107,10 @@ export async function resetUserPassword(id: string): Promise<{ message: string; 
   return data;
 }
 
+export async function deleteUser(id: string): Promise<void> {
+  await api.delete(`/users/${id}`);
+}
+
 // --- Reports ---
 export async function downloadReport(params: {
   from_date: string;

@@ -34,9 +34,6 @@ services:
       DEBUG: "false"
       SECRET_KEY: ${SECRET_KEY:-change_this_to_a_long_secret_in_production}
       CORS_ORIGINS: '["http://localhost:3000","http://localhost"]'
-      MSG91_AUTHKEY: ${MSG91_AUTHKEY:-}
-      MSG91_SENDER_ID: ${MSG91_SENDER_ID:-}
-      MSG91_WHATSAPP_NUMBER: ${MSG91_WHATSAPP_NUMBER:-}
       ROOT_ADMIN_MOBILE: ${ROOT_ADMIN_MOBILE:-7200775876}
       ROOT_ADMIN_PASSWORD: ${ROOT_ADMIN_PASSWORD:-0000}
       ROOT_ADMIN_NAME: ${ROOT_ADMIN_NAME:-Owner}
