@@ -30,8 +30,8 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/truckpark
-      APP_ENV: production
-      DEBUG: "false"
+      APP_ENV: development
+      DEBUG: "true"
       SECRET_KEY: ${SECRET_KEY:-change_this_to_a_long_secret_in_production}
       CORS_ORIGINS: '["http://localhost:3000","http://localhost"]'
       CORS_ORIGIN_REGEX: 'https://.*\.vercel\.app'
