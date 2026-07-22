@@ -207,3 +207,29 @@ truckpark/
 - [ ] Add SSL termination in Nginx (Let's Encrypt / Certbot)
 - [ ] Set up automated DB backups (pg_dump or managed DB snapshots)
 - [ ] Replace local `uploads/` with cloud object storage (AWS S3 / Cloudflare R2) for photo storage in production
+
+## Render + Supabase Deployment
+
+The application stores data in PostgreSQL. In the current schema, the admin and every
+managed user are rows in the `users` table. Operational data is stored in the same
+Supabase database in tables such as `tenants`, `trucks`, `parking_sessions`, `payments`,
+`billing_rules`, `system_settings`, and `notifications`. `tenant_id` scopes business data
+so multiple parking yards can share one database without mixing records.
+
+The repository includes `render.yaml` for the backend service. Create a Supabase project,
+copy its connection string into Render's `DATABASE_URL`, and set these production secrets:
+
+- `SECRET_KEY`: a random value of at least 32 characters
+- `ROOT_ADMIN_PASSWORD`: the initial root-admin password
+- `GATEKEEPER_PASSWORD`: the initial default gatekeeper password
+- `CORS_ORIGINS`: the deployed frontend origin, for example `https://app.example.com`
+
+Render runs `alembic upgrade head` before starting the API, so migrations create the
+Supabase schema. The seed command is idempotent and only creates missing bootstrap users;
+it no longer overwrites passwords on every deploy. Use the Users screen to change them.
+
+For Supabase, use the pooler or direct PostgreSQL URL with the `postgresql://` format;
+the backend converts it to the async SQLAlchemy driver automatically. Connection pooling
+is deliberately capped because each Render worker opens its own pool. Keep uploaded photos
+in S3, Cloudflare R2, or Supabase Storage for production; Render's local filesystem is
+ephemeral and is not a database or durable file store.

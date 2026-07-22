@@ -111,9 +111,6 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-yard-100/40">
-          Local admin: 7200775876 / 0000. Gatekeeper: 8888888888 / 0000.
-        </p>
         <p className="mt-3 text-center text-sm text-yard-100/60">
           Need access for your parking yard?{" "}
           <Link href="/subscribe" className="font-semibold text-signal hover:text-signal-dark">

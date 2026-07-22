@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: truckpark-api
+    runtime: python
+    rootDir: truckpark/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && python -m app.db.seed && gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 -b 0.0.0.0:$PORT --timeout 60
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ROOT_ADMIN_NAME
+        value: Owner
+      - key: ROOT_ADMIN_MOBILE
+        sync: false
+      - key: ROOT_ADMIN_PASSWORD
+        sync: false
+      - key: GATEKEEPER_NAME
+        value: Gatekeeper
+      - key: GATEKEEPER_MOBILE
+        sync: false
+      - key: GATEKEEPER_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "5"
+      - key: DB_STATEMENT_CACHE_SIZE
+        value: "0"

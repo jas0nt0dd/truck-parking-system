@@ -20,8 +20,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.core.config import settings
+from app.db.session import AsyncSessionLocal
 from app.routers import auth, billing, dashboard, payments, reports, sessions, settings as settings_router, subscriptions, trucks, uploads, users
 from app.utils.logging import configure_logging, get_logger
   
@@ -68,7 +70,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.get("/health", tags=["health"])
 async def health_check():
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+    async with AsyncSessionLocal() as db:
+        await db.execute(text("SELECT 1"))
+    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV, "database": "ok"}
 
 
 API_PREFIX = settings.API_V1_PREFIX

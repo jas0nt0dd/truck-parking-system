@@ -103,8 +103,8 @@ export async function setUserStatus(id: string, isActive: boolean): Promise<Mana
   return data;
 }
 
-export async function resetUserPassword(id: string): Promise<{ message: string; temporary_password?: string }> {
-  const { data } = await api.post(`/users/${id}/reset-password`);
+export async function resetUserPassword(id: string, newPassword: string): Promise<{ message: string }> {
+  const { data } = await api.post(`/users/${id}/reset-password`, { new_password: newPassword });
   return data;
 }
 

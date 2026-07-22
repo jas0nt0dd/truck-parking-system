@@ -8,7 +8,7 @@ will fail fast with a clear error instead of crashing later at runtime.
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import AnyUrl, field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,8 +41,19 @@ class Settings(BaseSettings):
     # --- Database ---
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/truckpark"
     DB_ECHO: bool = False
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_TIMEOUT: int = 30
+    DB_STATEMENT_CACHE_SIZE: int = 0
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v):
+        if isinstance(v, str) and v.startswith("postgres://"):
+            return "postgresql+asyncpg://" + v[len("postgres://"):]
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
 
     # --- CORS ---
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
@@ -85,6 +96,17 @@ class Settings(BaseSettings):
     GATEKEEPER_NAME: str = "Gatekeeper"
     GATEKEEPER_MOBILE: str = "8888888888"
     GATEKEEPER_PASSWORD: str = "0000"
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        if self.APP_ENV == "production":
+            if self.SECRET_KEY == "CHANGE_ME_IN_PRODUCTION" or len(self.SECRET_KEY) < 32:
+                raise ValueError("SECRET_KEY must be at least 32 characters in production")
+            if self.ROOT_ADMIN_PASSWORD in {"0000", "ChangeMe123!"} or len(self.ROOT_ADMIN_PASSWORD) < 8:
+                raise ValueError("ROOT_ADMIN_PASSWORD must be changed in production")
+            if self.GATEKEEPER_PASSWORD == "0000" or len(self.GATEKEEPER_PASSWORD) < 6:
+                raise ValueError("GATEKEEPER_PASSWORD must be changed in production")
+        return self
 
 
 @lru_cache

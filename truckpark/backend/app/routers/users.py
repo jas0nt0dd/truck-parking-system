@@ -1,5 +1,3 @@
-import secrets
-import string
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
@@ -36,11 +34,6 @@ def _ensure_same_tenant(target: User, current_user: User) -> None:
         return
     if getattr(target, "tenant_id", None) != getattr(current_user, "tenant_id", None):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-
-def _generate_temp_password(length: int = 10) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 @router.get("", response_model=list[UserOut])
@@ -139,6 +132,7 @@ async def update_user_status(
 @router.post("/{user_id}/reset-password", response_model=PasswordResetResponse)
 async def reset_password(
     user_id: uuid.UUID,
+    payload: PasswordResetRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -148,14 +142,12 @@ async def reset_password(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     _ensure_same_tenant(user, current_user)
 
-    temp_password = _generate_temp_password()
-    user.password_hash = hash_password(temp_password)
-    user.must_reset_password = True
+    user.password_hash = hash_password(payload.new_password)
+    user.must_reset_password = False
     await db.flush()
 
     return PasswordResetResponse(
-        message="Password reset successfully. Share the temporary password securely with the user.",
-        temporary_password=temp_password,
+        message="Password updated successfully.",
     )
 
 

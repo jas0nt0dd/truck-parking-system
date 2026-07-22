@@ -47,13 +47,7 @@ async def seed() -> None:
             db.add(root)
             logger.info("Created root admin: %s", settings.ROOT_ADMIN_MOBILE)
         else:
-            root.name = settings.ROOT_ADMIN_NAME
-            root.password_hash = hash_password(settings.ROOT_ADMIN_PASSWORD)
-            root.role = UserRole.admin
-            root.is_active = True
-            root.is_root = True
-            root.tenant_id = None
-            logger.info("Updated root admin credentials: %s", settings.ROOT_ADMIN_MOBILE)
+            logger.info("Root admin already exists, leaving credentials unchanged")
 
         # Default gatekeeper
         result = await db.execute(select(User).where(User.mobile == settings.GATEKEEPER_MOBILE))
@@ -71,13 +65,7 @@ async def seed() -> None:
             db.add(gatekeeper)
             logger.info("Created default gatekeeper: %s", settings.GATEKEEPER_MOBILE)
         else:
-            gatekeeper.name = settings.GATEKEEPER_NAME
-            gatekeeper.password_hash = hash_password(settings.GATEKEEPER_PASSWORD)
-            gatekeeper.role = UserRole.gatekeeper
-            gatekeeper.is_active = True
-            gatekeeper.is_root = False
-            gatekeeper.tenant_id = None
-            logger.info("Updated default gatekeeper credentials: %s", settings.GATEKEEPER_MOBILE)
+            logger.info("Default gatekeeper already exists, leaving credentials unchanged")
 
         # Platform-level default billing rules
         existing_rules = (await db.execute(select(BillingRule).where(BillingRule.tenant_id.is_(None)))).scalars().first()

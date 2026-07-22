@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, ToggleLeft, ToggleRight, KeyRound, Copy } from "lucide-react";
+import { Plus, ToggleLeft, ToggleRight, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import {
@@ -26,7 +26,10 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [form,     setForm]     = useState(EMPTY_FORM);
   const [saving,   setSaving]   = useState(false);
-  const [tempPwd,  setTempPwd]  = useState<{ name: string; pwd: string } | null>(null);
+  const [resetUser, setResetUser] = useState<ManagedUser | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -64,13 +67,35 @@ export default function UsersPage() {
     }
   }
 
-  async function handleResetPwd(u: ManagedUser) {
-    if (!confirm(`Reset password for ${u.name}?`)) return;
+  function handleResetPwd(u: ManagedUser) {
+    setError(null);
+    setResetUser(u);
+    setResetPassword("");
+    setResetPasswordConfirm("");
+  }
+
+  async function applyPasswordReset() {
+    if (!resetUser) return;
+    if (resetPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (resetPassword !== resetPasswordConfirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setResetLoading(true);
+    setError(null);
     try {
-      const res = await resetUserPassword(u.id);
-      setTempPwd({ name: u.name, pwd: res.temporary_password ?? "" });
+      await resetUserPassword(resetUser.id, resetPassword);
+      setResetUser(null);
+      setResetPassword("");
+      setResetPasswordConfirm("");
     } catch (err) {
       setError(apiErrorMessage(err));
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -94,17 +119,35 @@ export default function UsersPage() {
       {error && <p className="mb-4 rounded bg-warn-light px-4 py-3 text-sm text-warn">{error}</p>}
 
       {/* Temporary password modal */}
-      {tempPwd && (
+      {resetUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="card w-full max-w-sm p-6 text-center">
-            <h2 className="mb-2 text-base font-semibold">Temporary Password for {tempPwd.name}</h2>
-            <p className="mb-4 rounded bg-yard-50 p-3 font-mono text-xl font-bold text-yard-900">{tempPwd.pwd}</p>
-            <p className="mb-5 text-sm text-yard-500">Share this securely. The user should change it on first login.</p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" className="flex-1" onClick={() => navigator.clipboard.writeText(tempPwd.pwd)}>
-                <Copy size={14} /> Copy
+            <h2 className="mb-2 text-base font-semibold">Reset password for {resetUser.name}</h2>
+            <div className="space-y-4 text-left">
+              <Field label="New password" required>
+                <Input
+                  type="password"
+                  placeholder="Min 6 characters"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                />
+              </Field>
+              <Field label="Confirm password" required>
+                <Input
+                  type="password"
+                  placeholder="Repeat new password"
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <Button size="sm" className="flex-1" loading={resetLoading} onClick={applyPasswordReset}>
+                Update Password
               </Button>
-              <Button size="sm" className="flex-1" onClick={() => setTempPwd(null)}>Done</Button>
+              <Button size="sm" variant="secondary" className="flex-1" onClick={() => setResetUser(null)}>
+                Cancel
+              </Button>
             </div>
           </div>
         </div>
