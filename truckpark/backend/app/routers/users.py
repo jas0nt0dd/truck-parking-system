@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import require_admin
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.auth import (
     PasswordResetRequest,
     PasswordResetResponse,
@@ -23,6 +23,21 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+def _is_platform_admin(user: User) -> bool:
+    return (
+        getattr(user, "role", None) == UserRole.admin
+        and bool(getattr(user, "is_root", False))
+        and getattr(user, "tenant_id", None) is None
+    )
+
+
+def _ensure_same_tenant(target: User, current_user: User) -> None:
+    if _is_platform_admin(current_user):
+        return
+    if getattr(target, "tenant_id", None) != getattr(current_user, "tenant_id", None):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+
 def _generate_temp_password(length: int = 10) -> str:
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -30,7 +45,10 @@ def _generate_temp_password(length: int = 10) -> str:
 
 @router.get("", response_model=list[UserOut])
 async def list_users(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_admin)):
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    query = select(User).order_by(User.created_at.desc())
+    if not _is_platform_admin(current_user):
+        query = query.where(User.tenant_id == current_user.tenant_id)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
@@ -45,6 +63,7 @@ async def create_user(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Mobile number already registered")
 
     user = User(
+        tenant_id=current_user.tenant_id,
         name=payload.name.strip(),
         mobile=payload.mobile.strip(),
         email=payload.email,
@@ -77,6 +96,7 @@ async def update_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    _ensure_same_tenant(user, current_user)
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         if isinstance(value, str):
@@ -106,6 +126,7 @@ async def update_user_status(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    _ensure_same_tenant(user, current_user)
     if user.id == current_user.id and not payload.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot disable your own account")
 
@@ -125,6 +146,7 @@ async def reset_password(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    _ensure_same_tenant(user, current_user)
 
     temp_password = _generate_temp_password()
     user.password_hash = hash_password(temp_password)
@@ -147,6 +169,7 @@ async def delete_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    _ensure_same_tenant(user, current_user)
     if user.id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
 

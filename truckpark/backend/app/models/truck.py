@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+import uuid
 from typing import Optional
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -13,6 +15,9 @@ from app.models.mixins import UUIDPKMixin
 class Truck(UUIDPKMixin, Base):
     __tablename__ = "trucks"
 
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     truck_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     driver_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     driver_mobile: Mapped[str] = mapped_column(String(15), nullable=False, index=True)

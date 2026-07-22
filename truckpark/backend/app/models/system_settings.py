@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import uuid
 from typing import Optional
 
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -17,6 +18,9 @@ class SystemSettings(UUIDPKMixin, TimestampMixin, Base):
     """
     __tablename__ = "system_settings"
 
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     parking_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     company_details: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     logo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

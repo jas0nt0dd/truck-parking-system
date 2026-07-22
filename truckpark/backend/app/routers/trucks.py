@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import require_gatekeeper_or_admin
+from app.core.dependencies import require_gatekeeper_or_admin, tenant_filter
 from app.db.session import get_db
 from app.models.parking_session import ParkingSession
 from app.models.truck import Truck
@@ -20,12 +20,16 @@ async def truck_history(
     current_user: User = Depends(require_gatekeeper_or_admin),
 ):
     """Complete visit history for a single truck, identified by truck number."""
-    result = await db.execute(
+    query = (
         select(ParkingSession)
         .join(Truck, ParkingSession.truck_id == Truck.id)
         .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
         .where(Truck.truck_number == truck_number.strip().upper())
         .order_by(ParkingSession.entry_time.desc())
     )
+    scope = tenant_filter(ParkingSession, current_user)
+    if scope is not None:
+        query = query.where(scope)
+    result = await db.execute(query)
     sessions = result.scalars().all()
     return sessions

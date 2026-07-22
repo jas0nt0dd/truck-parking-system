@@ -4,7 +4,8 @@ import enum
 import uuid
 from typing import Optional
 
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, Enum, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -19,6 +20,9 @@ class UserRole(str, enum.Enum):
 class User(UUIDPKMixin, TimestampMixin, Base):
     __tablename__ = "users"
 
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     mobile: Mapped[str] = mapped_column(String(15), nullable=False, unique=True, index=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
@@ -33,6 +37,7 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     gatekeeper_sessions = relationship(
         "ParkingSession", back_populates="gatekeeper", foreign_keys="ParkingSession.gatekeeper_id"
     )
+    tenant = relationship("Tenant", back_populates="users")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User {self.mobile} ({self.role})>"

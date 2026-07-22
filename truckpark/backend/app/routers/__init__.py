@@ -1,4 +1,4 @@
-from app.routers import auth, billing, dashboard, payments, reports, sessions, settings, trucks, uploads, users
+from app.routers import auth, billing, dashboard, payments, reports, sessions, settings, subscriptions, trucks, uploads, users
 
 __all__ = [
     "auth",
@@ -8,6 +8,7 @@ __all__ = [
     "reports",
     "sessions",
     "settings",
+    "subscriptions",
     "trucks",
     "uploads",
     "users",

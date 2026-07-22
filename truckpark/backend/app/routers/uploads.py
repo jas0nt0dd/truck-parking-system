@@ -38,7 +38,8 @@ async def upload_photo(
             detail=f"File too large (max {settings.MAX_UPLOAD_MB}MB)",
         )
 
-    upload_dir = Path(settings.UPLOAD_DIR)
+    tenant_folder = str(current_user.tenant_id) if current_user.tenant_id else "platform"
+    upload_dir = Path(settings.UPLOAD_DIR) / tenant_folder
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     ext = Path(file.filename or "photo.jpg").suffix or ".jpg"
@@ -46,4 +47,4 @@ async def upload_photo(
     filepath = upload_dir / filename
     filepath.write_bytes(contents)
 
-    return {"url": f"/{settings.UPLOAD_DIR}/{filename}"}
+    return {"url": f"/{settings.UPLOAD_DIR}/{tenant_folder}/{filename}"}

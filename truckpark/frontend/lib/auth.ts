@@ -8,6 +8,7 @@ export type Role = "admin" | "gatekeeper";
 
 export interface AuthUser {
   id: string;
+  tenant_id?: string | null;
   name: string;
   mobile: string;
   email?: string | null;

@@ -31,6 +31,9 @@ class NotificationStatus(str, enum.Enum):
 class Notification(UUIDPKMixin, Base):
     __tablename__ = "notifications"
 
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("parking_sessions.id", ondelete="CASCADE"), nullable=True, index=True
     )

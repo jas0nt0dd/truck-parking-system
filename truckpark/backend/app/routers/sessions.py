@@ -9,7 +9,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import require_gatekeeper_or_admin
+from app.core.dependencies import require_gatekeeper_or_admin, require_same_tenant, tenant_filter
 from app.db.session import AsyncSessionLocal, get_db
 from app.models.billing_rule import BillingRule
 from app.models.parking_session import ParkingSession, SessionStatus
@@ -63,12 +63,18 @@ async def create_entry(
     # Find-or-create truck by truck_number (kept simple per beta spec --
     # truck "identity" is informational, sessions are the source of truth).
     result = await db.execute(
-        select(Truck).where(Truck.truck_number == payload.truck_number).order_by(Truck.created_at.desc())
+        select(Truck)
+        .where(
+            Truck.truck_number == payload.truck_number,
+            *([tenant_filter(Truck, current_user)] if tenant_filter(Truck, current_user) is not None else []),
+        )
+        .order_by(Truck.created_at.desc())
     )
     truck = result.scalars().first()
 
     if truck is None:
         truck = Truck(
+            tenant_id=current_user.tenant_id,
             truck_number=payload.truck_number,
             driver_name=payload.driver_name,
             driver_mobile=payload.driver_mobile,
@@ -91,7 +97,11 @@ async def create_entry(
     existing = await db.execute(
         select(ParkingSession)
         .join(Truck)
-        .where(Truck.truck_number == payload.truck_number, ParkingSession.status == SessionStatus.inside)
+        .where(
+            Truck.truck_number == payload.truck_number,
+            ParkingSession.status == SessionStatus.inside,
+            *([tenant_filter(ParkingSession, current_user)] if tenant_filter(ParkingSession, current_user) is not None else []),
+        )
     )
     if existing.scalars().first() is not None:
         raise HTTPException(
@@ -100,6 +110,7 @@ async def create_entry(
         )
 
     session = ParkingSession(
+        tenant_id=current_user.tenant_id,
         truck_id=truck.id,
         entry_time=utc_now(),
         entry_photo_url=payload.entry_photo_url,
@@ -144,7 +155,8 @@ async def search_sessions(
             or_(
                 Truck.truck_number.ilike(f"%{q.strip().upper()}%"),
                 Truck.driver_mobile.ilike(f"%{q.strip()}%"),
-            )
+            ),
+            *([tenant_filter(ParkingSession, current_user)] if tenant_filter(ParkingSession, current_user) is not None else []),
         )
         .order_by(ParkingSession.entry_time.desc())
         .limit(50)
@@ -193,6 +205,9 @@ async def session_history(
         .outerjoin(Payment, Payment.session_id == ParkingSession.id)
     )
     filters = []
+    scope = tenant_filter(ParkingSession, current_user)
+    if scope is not None:
+        filters.append(scope)
     if truck_number:
         filters.append(Truck.truck_number.ilike(f"%{truck_number.strip().upper()}%"))
     if driver_mobile:
@@ -251,6 +266,7 @@ async def exit_truck(
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    require_same_tenant(session, current_user)
     if session.status == SessionStatus.exited:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session already exited")
 
@@ -261,7 +277,11 @@ async def exit_truck(
 
     dur_hours = duration_hours(session.entry_time, session.exit_time)
 
-    rules_result = await db.execute(select(BillingRule).where(BillingRule.is_active == True))  # noqa: E712
+    rule_filters = [BillingRule.is_active == True]  # noqa: E712
+    rule_scope = tenant_filter(BillingRule, current_user)
+    if rule_scope is not None:
+        rule_filters.append(rule_scope)
+    rules_result = await db.execute(select(BillingRule).where(*rule_filters))
     rules = rules_result.scalars().all()
 
     try:
@@ -270,6 +290,7 @@ async def exit_truck(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     payment = Payment(
+        tenant_id=current_user.tenant_id,
         session_id=session.id,
         amount=amount,
         payment_status=PaymentStatus.pending,

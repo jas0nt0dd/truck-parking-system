@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, tenant_filter
 from app.db.session import get_db
 from app.models.parking_session import ParkingSession
 from app.models.payment import Payment
@@ -43,6 +43,9 @@ async def export_report(
         .where(ParkingSession.entry_time >= start, ParkingSession.entry_time <= end)
         .order_by(ParkingSession.entry_time.asc())
     )
+    scope = tenant_filter(ParkingSession, current_user)
+    if scope is not None:
+        query = query.where(scope)
     if truck_number:
         query = query.where(Truck.truck_number.ilike(f"%{truck_number.strip().upper()}%"))
     if driver_mobile:

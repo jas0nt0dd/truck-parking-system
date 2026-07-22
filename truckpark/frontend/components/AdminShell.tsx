@@ -8,6 +8,7 @@ import {
   Receipt,
   Users,
   FileBarChart,
+  CreditCard,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -15,12 +16,20 @@ import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  platformOnly?: boolean;
+};
+
+const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/sessions", label: "Sessions & History", icon: History },
   { href: "/billing", label: "Billing Rules", icon: Receipt },
   { href: "/reports", label: "Reports", icon: FileBarChart },
   { href: "/users", label: "Users", icon: Users },
+  { href: "/subscriptions", label: "Subscriptions", icon: CreditCard, platformOnly: true },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -41,7 +50,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-yard-100/60">Admin Panel</p>
         </div>
         <nav className="mt-2 flex flex-col gap-0.5 px-3">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.filter((item) => !item.platformOnly || (user?.is_root && !user?.tenant_id)).map(({ href, label, icon: Icon }) => {
             const active = pathname?.startsWith(href);
             return (
               <Link

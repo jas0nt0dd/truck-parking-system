@@ -61,7 +61,31 @@ async def require_root_admin(current_user: User = Depends(get_current_user)) -> 
     return current_user
 
 
+async def require_platform_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.admin or not current_user.is_root or current_user.tenant_id is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform admin access required")
+    return current_user
+
+
 async def require_gatekeeper_or_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role not in (UserRole.admin, UserRole.gatekeeper):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return current_user
+
+
+def is_platform_admin(user: User) -> bool:
+    return user.role == UserRole.admin and user.is_root and user.tenant_id is None
+
+
+def tenant_filter(model, current_user: User):
+    tenant_column = getattr(model, "tenant_id")
+    if is_platform_admin(current_user):
+        return None
+    return tenant_column == current_user.tenant_id
+
+
+def require_same_tenant(model_obj, current_user: User) -> None:
+    if is_platform_admin(current_user):
+        return
+    if getattr(model_obj, "tenant_id", None) != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")

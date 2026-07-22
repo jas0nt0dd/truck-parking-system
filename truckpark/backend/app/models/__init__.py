@@ -3,10 +3,17 @@ from app.models.notification import Notification, NotificationStatus, Notificati
 from app.models.parking_session import ParkingSession, SessionStatus  # noqa: F401
 from app.models.payment import Payment, PaymentMode, PaymentStatus  # noqa: F401
 from app.models.system_settings import SystemSettings  # noqa: F401
+from app.models.subscription_request import SubscriptionRequest, SubscriptionRequestStatus  # noqa: F401
+from app.models.tenant import SubscriptionStatus, Tenant, TenantStatus  # noqa: F401
 from app.models.truck import Truck  # noqa: F401
 from app.models.user import User, UserRole  # noqa: F401
 
 __all__ = [
+    "Tenant",
+    "TenantStatus",
+    "SubscriptionStatus",
+    "SubscriptionRequest",
+    "SubscriptionRequestStatus",
     "User",
     "UserRole",
     "Truck",

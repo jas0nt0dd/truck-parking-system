@@ -48,8 +48,8 @@ class MSG91Config:
         return bool(self.authkey and self.whatsapp_number)
 
 
-async def load_msg91_config(db: AsyncSession) -> MSG91Config:
-    result = await db.execute(select(SystemSettings).limit(1))
+async def load_msg91_config(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> MSG91Config:
+    result = await db.execute(select(SystemSettings).where(SystemSettings.tenant_id == tenant_id).limit(1))
     row = result.scalar_one_or_none()
     return MSG91Config(
         authkey=(row.msg91_authkey if row and row.msg91_authkey else settings.MSG91_AUTHKEY),
@@ -174,8 +174,10 @@ class MSG91WhatsAppProvider:
 async def _record_notification(
     db: AsyncSession, session_id: Optional[uuid.UUID], mobile: str,
     message_type: NotificationType, status: NotificationStatus, error: Optional[str] = None,
+    tenant_id: Optional[uuid.UUID] = None,
 ) -> Notification:
     notif = Notification(
+        tenant_id=tenant_id,
         session_id=session_id,
         mobile=mobile,
         channel="whatsapp",
@@ -193,14 +195,14 @@ async def _record_notification(
 
 async def notify_entry(db: AsyncSession, session: ParkingSession, truck: Truck) -> None:
     """Best-effort: failures are logged + recorded, never raised to caller."""
-    config = await load_msg91_config(db)
+    config = await load_msg91_config(db, session.tenant_id)
     if not config.enabled:
         logger.info("Notifications disabled in system settings; skipping entry notification")
         return
     if not config.is_configured:
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.entry,
-            NotificationStatus.failed, error="MSG91 not configured",
+            NotificationStatus.failed, error="MSG91 not configured", tenant_id=session.tenant_id,
         )
         return
     try:
@@ -215,13 +217,14 @@ async def notify_entry(db: AsyncSession, session: ParkingSession, truck: Truck) 
             truck.driver_mobile,
         )
         await _record_notification(
-            db, session.id, truck.driver_mobile, NotificationType.entry, NotificationStatus.sent
+            db, session.id, truck.driver_mobile, NotificationType.entry,
+            NotificationStatus.sent, tenant_id=session.tenant_id,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("MSG91 entry notification failed: %s", exc)
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.entry,
-            NotificationStatus.failed, error=str(exc),
+            NotificationStatus.failed, error=str(exc), tenant_id=session.tenant_id,
         )
 
 
@@ -231,18 +234,20 @@ async def notify_exit(
     if session.exit_time is None:
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.exit,
-            NotificationStatus.failed, error="Cannot send exit receipt before exit_time is set",
+            NotificationStatus.failed,
+            error="Cannot send exit receipt before exit_time is set",
+            tenant_id=session.tenant_id,
         )
         return
 
-    config = await load_msg91_config(db)
+    config = await load_msg91_config(db, session.tenant_id)
     if not config.enabled:
         logger.info("Notifications disabled in system settings; skipping exit notification")
         return
     if not config.is_configured:
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.exit,
-            NotificationStatus.failed, error="MSG91 not configured",
+            NotificationStatus.failed, error="MSG91 not configured", tenant_id=session.tenant_id,
         )
         return
     try:
@@ -262,11 +267,12 @@ async def notify_exit(
             payment_mode,
         )
         await _record_notification(
-            db, session.id, truck.driver_mobile, NotificationType.exit, NotificationStatus.sent
+            db, session.id, truck.driver_mobile, NotificationType.exit,
+            NotificationStatus.sent, tenant_id=session.tenant_id,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("MSG91 exit notification failed: %s", exc)
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.exit,
-            NotificationStatus.failed, error=str(exc),
+            NotificationStatus.failed, error=str(exc), tenant_id=session.tenant_id,
         )

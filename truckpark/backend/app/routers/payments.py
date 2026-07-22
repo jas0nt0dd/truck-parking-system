@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import require_gatekeeper_or_admin
+from app.core.dependencies import require_gatekeeper_or_admin, require_same_tenant, tenant_filter
 from app.db.session import AsyncSessionLocal, get_db
 from app.models.parking_session import ParkingSession
 from app.models.payment import Payment, PaymentStatus
@@ -46,7 +46,10 @@ async def mark_paid(
     current_user: User = Depends(require_gatekeeper_or_admin),
 ):
     result = await db.execute(
-        select(Payment).where(Payment.session_id == session_id)
+        select(Payment).where(
+            Payment.session_id == session_id,
+            *([tenant_filter(Payment, current_user)] if tenant_filter(Payment, current_user) is not None else []),
+        )
     )
     payment = result.scalar_one_or_none()
     if payment is None:
@@ -71,6 +74,7 @@ async def mark_paid(
     session = session_result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    require_same_tenant(session, current_user)
 
     await db.flush()
     await db.refresh(session, attribute_names=["payment", "truck"])

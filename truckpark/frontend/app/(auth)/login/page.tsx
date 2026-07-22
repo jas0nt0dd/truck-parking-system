@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { ShieldCheck, Truck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
@@ -112,6 +113,12 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-xs text-yard-100/40">
           Local admin: 7200775876 / 0000. Gatekeeper: 8888888888 / 0000.
+        </p>
+        <p className="mt-3 text-center text-sm text-yard-100/60">
+          Need access for your parking yard?{" "}
+          <Link href="/subscribe" className="font-semibold text-signal hover:text-signal-dark">
+            Request a subscription
+          </Link>
         </p>
       </div>
     </div>

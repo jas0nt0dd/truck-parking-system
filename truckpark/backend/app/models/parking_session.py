@@ -21,6 +21,9 @@ class SessionStatus(str, enum.Enum):
 class ParkingSession(UUIDPKMixin, TimestampMixin, Base):
     __tablename__ = "parking_sessions"
 
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     truck_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("trucks.id", ondelete="RESTRICT"), nullable=False, index=True
     )

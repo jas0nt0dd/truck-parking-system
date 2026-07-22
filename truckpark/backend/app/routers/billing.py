@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import require_admin
+from app.core.dependencies import require_admin, require_same_tenant, tenant_filter
 from app.db.session import get_db
 from app.models.billing_rule import BillingRule
 from app.models.user import User
@@ -15,7 +15,11 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 
 @router.get("/rules", response_model=list[BillingRuleOut])
 async def list_rules(db: AsyncSession = Depends(get_db), current_user: User = Depends(require_admin)):
-    result = await db.execute(select(BillingRule).order_by(BillingRule.priority.asc()))
+    query = select(BillingRule).order_by(BillingRule.priority.asc())
+    scope = tenant_filter(BillingRule, current_user)
+    if scope is not None:
+        query = query.where(scope)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
@@ -25,7 +29,7 @@ async def create_rule(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    rule = BillingRule(**payload.model_dump())
+    rule = BillingRule(tenant_id=current_user.tenant_id, **payload.model_dump())
     db.add(rule)
     await db.flush()
     await db.refresh(rule)
@@ -43,6 +47,7 @@ async def update_rule(
     rule = result.scalar_one_or_none()
     if rule is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing rule not found")
+    require_same_tenant(rule, current_user)
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(rule, field, value)
@@ -65,4 +70,5 @@ async def delete_rule(
     rule = result.scalar_one_or_none()
     if rule is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing rule not found")
+    require_same_tenant(rule, current_user)
     await db.delete(rule)

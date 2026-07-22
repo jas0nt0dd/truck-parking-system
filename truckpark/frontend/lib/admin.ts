@@ -63,6 +63,7 @@ export async function deleteBillingRule(id: string): Promise<void> {
 // --- Users ---
 export interface ManagedUser {
   id: string;
+  tenant_id?: string | null;
   name: string;
   mobile: string;
   email?: string | null;
@@ -104,6 +105,66 @@ export async function setUserStatus(id: string, isActive: boolean): Promise<Mana
 
 export async function resetUserPassword(id: string): Promise<{ message: string; temporary_password?: string }> {
   const { data } = await api.post(`/users/${id}/reset-password`);
+  return data;
+}
+
+// --- Platform subscriptions ---
+export interface SubscriptionRequest {
+  id: string;
+  parking_name: string;
+  owner_name: string;
+  owner_mobile: string;
+  owner_email?: string | null;
+  parking_location?: string | null;
+  expected_trucks_per_day?: number | null;
+  message?: string | null;
+  status: "pending" | "approved" | "rejected";
+  admin_notes?: string | null;
+  requested_at: string;
+  reviewed_at?: string | null;
+  tenant_id?: string | null;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  owner_name: string;
+  owner_mobile: string;
+  owner_email?: string | null;
+  parking_location?: string | null;
+  status: "pending" | "active" | "suspended" | "cancelled";
+  subscription_status: "trial" | "active" | "past_due" | "cancelled";
+  plan_name: string;
+  database_name?: string | null;
+  subscription_started_at?: string | null;
+  subscription_expires_at?: string | null;
+  created_at: string;
+}
+
+export async function fetchSubscriptionRequests(status?: string): Promise<SubscriptionRequest[]> {
+  const { data } = await api.get("/platform/subscription-requests", { params: { status } });
+  return data;
+}
+
+export async function fetchTenants(): Promise<Tenant[]> {
+  const { data } = await api.get("/platform/tenants");
+  return data;
+}
+
+export async function approveSubscriptionRequest(
+  id: string,
+  payload: { admin_notes?: string; plan_name?: string; subscription_expires_at?: string }
+): Promise<{ request: SubscriptionRequest; tenant: Tenant; owner_mobile: string; temporary_password: string }> {
+  const { data } = await api.post(`/platform/subscription-requests/${id}/approve`, payload);
+  return data;
+}
+
+export async function rejectSubscriptionRequest(
+  id: string,
+  payload: { admin_notes?: string }
+): Promise<SubscriptionRequest> {
+  const { data } = await api.post(`/platform/subscription-requests/${id}/reject`, payload);
   return data;
 }
 

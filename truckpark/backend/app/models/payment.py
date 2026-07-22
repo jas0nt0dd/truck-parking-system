@@ -28,6 +28,9 @@ class PaymentStatus(str, enum.Enum):
 class Payment(UUIDPKMixin, TimestampMixin, Base):
     __tablename__ = "payments"
 
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("parking_sessions.id", ondelete="CASCADE"),

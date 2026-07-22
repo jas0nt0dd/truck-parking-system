@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import require_admin, require_gatekeeper_or_admin
+from app.core.dependencies import require_admin, require_gatekeeper_or_admin, tenant_filter
 from app.db.session import get_db
 from app.models.parking_session import ParkingSession, SessionStatus
 from app.models.payment import Payment, PaymentStatus
@@ -29,17 +29,23 @@ async def dashboard_summary(
     current_user: User = Depends(require_admin),
 ):
     start, end = _today_bounds_utc()
+    session_scope = tenant_filter(ParkingSession, current_user)
+    payment_scope = tenant_filter(Payment, current_user)
+    session_filters = [session_scope] if session_scope is not None else []
+    payment_filters = [payment_scope] if payment_scope is not None else []
 
     trucks_inside = (
         await db.execute(
-            select(func.count()).select_from(ParkingSession).where(ParkingSession.status == SessionStatus.inside)
+            select(func.count()).select_from(ParkingSession).where(
+                ParkingSession.status == SessionStatus.inside, *session_filters
+            )
         )
     ).scalar_one()
 
     entries_today = (
         await db.execute(
             select(func.count()).select_from(ParkingSession).where(
-                ParkingSession.entry_time >= start, ParkingSession.entry_time <= end
+                ParkingSession.entry_time >= start, ParkingSession.entry_time <= end, *session_filters
             )
         )
     ).scalar_one()
@@ -47,7 +53,7 @@ async def dashboard_summary(
     exits_today = (
         await db.execute(
             select(func.count()).select_from(ParkingSession).where(
-                ParkingSession.exit_time >= start, ParkingSession.exit_time <= end
+                ParkingSession.exit_time >= start, ParkingSession.exit_time <= end, *session_filters
             )
         )
     ).scalar_one()
@@ -58,13 +64,14 @@ async def dashboard_summary(
                 Payment.payment_status == PaymentStatus.paid,
                 Payment.paid_at >= start,
                 Payment.paid_at <= end,
+                *payment_filters,
             )
         )
     ).scalar_one()
 
     pending_payments = (
         await db.execute(
-            select(func.count()).select_from(Payment).where(Payment.payment_status == PaymentStatus.pending)
+            select(func.count()).select_from(Payment).where(Payment.payment_status == PaymentStatus.pending, *payment_filters)
         )
     ).scalar_one()
 
@@ -89,6 +96,9 @@ async def dashboard_live(
         .where(ParkingSession.status == SessionStatus.inside)
         .order_by(ParkingSession.entry_time.asc())
     )
+    scope = tenant_filter(ParkingSession, current_user)
+    if scope is not None:
+        query = query.where(scope)
     rows = (await db.execute(query)).all()
 
     now = utc_now()
