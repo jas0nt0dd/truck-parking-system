@@ -36,6 +36,7 @@ async def seed() -> None:
         root = result.scalar_one_or_none()
         if root is None:
             root = User(
+                tenant_id=None,
                 name=settings.ROOT_ADMIN_NAME,
                 mobile=settings.ROOT_ADMIN_MOBILE,
                 password_hash=hash_password(settings.ROOT_ADMIN_PASSWORD),
@@ -51,6 +52,7 @@ async def seed() -> None:
             root.role = UserRole.admin
             root.is_active = True
             root.is_root = True
+            root.tenant_id = None
             logger.info("Updated root admin credentials: %s", settings.ROOT_ADMIN_MOBILE)
 
         # Default gatekeeper
@@ -58,6 +60,7 @@ async def seed() -> None:
         gatekeeper = result.scalar_one_or_none()
         if gatekeeper is None:
             gatekeeper = User(
+                tenant_id=None,
                 name=settings.GATEKEEPER_NAME,
                 mobile=settings.GATEKEEPER_MOBILE,
                 password_hash=hash_password(settings.GATEKEEPER_PASSWORD),
@@ -73,21 +76,24 @@ async def seed() -> None:
             gatekeeper.role = UserRole.gatekeeper
             gatekeeper.is_active = True
             gatekeeper.is_root = False
+            gatekeeper.tenant_id = None
             logger.info("Updated default gatekeeper credentials: %s", settings.GATEKEEPER_MOBILE)
 
-        # Default billing rules
-        existing_rules = (await db.execute(select(BillingRule))).scalars().first()
+        # Platform-level default billing rules
+        existing_rules = (await db.execute(select(BillingRule).where(BillingRule.tenant_id.is_(None)))).scalars().first()
         if existing_rules is None:
             for rule in DEFAULT_RULES:
-                db.add(BillingRule(**rule))
+                db.add(BillingRule(tenant_id=None, **rule))
             logger.info("Seeded %d default billing rules", len(DEFAULT_RULES))
         else:
             logger.info("Billing rules already exist, skipping")
 
-        # Default system settings row
-        existing_settings = (await db.execute(select(SystemSettings))).scalar_one_or_none()
+        # Platform-level default system settings row
+        existing_settings = (
+            await db.execute(select(SystemSettings).where(SystemSettings.tenant_id.is_(None)).limit(1))
+        ).scalar_one_or_none()
         if existing_settings is None:
-            db.add(SystemSettings(parking_name="My Truck Yard", notifications_enabled=True))
+            db.add(SystemSettings(tenant_id=None, parking_name="My Truck Yard", notifications_enabled=True))
             logger.info("Created default system settings row")
 
         await db.commit()
