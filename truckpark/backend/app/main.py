@@ -24,7 +24,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
-from app.routers import auth, billing, dashboard, payments, reports, sessions, settings as settings_router, subscriptions, trucks, uploads, users
+from app.routers import auth, billing, dashboard, payments, reports, sessions, settings as settings_router, subscriptions, trucks, uploads, users, diagnostics
 from app.utils.logging import configure_logging, get_logger
   
 configure_logging()
@@ -87,6 +87,7 @@ app.include_router(settings_router.router, prefix=API_PREFIX)
 app.include_router(subscriptions.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(uploads.router, prefix=API_PREFIX)
+app.include_router(diagnostics.router, prefix=API_PREFIX)
 
 
 if __name__ == "__main__":
