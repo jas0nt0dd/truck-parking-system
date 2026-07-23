@@ -12,7 +12,7 @@ import asyncio
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.db.session import AsyncSessionLocal
 from app.models.billing_rule import BillingRule
 from app.models.system_settings import SystemSettings
@@ -32,7 +32,7 @@ async def seed() -> None:
     async with AsyncSessionLocal() as db:
         # Root admin. Keep local/demo credentials deterministic so the
         # launcher can recreate a usable system without wiping volumes.
-        result = await db.execute(select(User).where(User.mobile == settings.ROOT_ADMIN_MOBILE))
+        result = await db.execute(select(User).where(User.is_root.is_(True)))
         root = result.scalar_one_or_none()
         if root is None:
             root = User(
@@ -47,7 +47,29 @@ async def seed() -> None:
             db.add(root)
             logger.info("Created root admin: %s", settings.ROOT_ADMIN_MOBILE)
         else:
-            logger.info("Root admin already exists, leaving credentials unchanged")
+            updated = False
+            if root.mobile != settings.ROOT_ADMIN_MOBILE:
+                root.mobile = settings.ROOT_ADMIN_MOBILE
+                updated = True
+            if root.name != settings.ROOT_ADMIN_NAME:
+                root.name = settings.ROOT_ADMIN_NAME
+                updated = True
+            if root.role != UserRole.admin:
+                root.role = UserRole.admin
+                updated = True
+            if not root.is_active:
+                root.is_active = True
+                updated = True
+            if not root.is_root:
+                root.is_root = True
+                updated = True
+            if not verify_password(settings.ROOT_ADMIN_PASSWORD, root.password_hash):
+                root.password_hash = hash_password(settings.ROOT_ADMIN_PASSWORD)
+                updated = True
+            if updated:
+                logger.info("Updated root admin credentials from env")
+            else:
+                logger.info("Root admin already exists with current env values")
 
         # Default gatekeeper
         result = await db.execute(select(User).where(User.mobile == settings.GATEKEEPER_MOBILE))
@@ -65,7 +87,26 @@ async def seed() -> None:
             db.add(gatekeeper)
             logger.info("Created default gatekeeper: %s", settings.GATEKEEPER_MOBILE)
         else:
-            logger.info("Default gatekeeper already exists, leaving credentials unchanged")
+            updated = False
+            if gatekeeper.name != settings.GATEKEEPER_NAME:
+                gatekeeper.name = settings.GATEKEEPER_NAME
+                updated = True
+            if gatekeeper.role != UserRole.gatekeeper:
+                gatekeeper.role = UserRole.gatekeeper
+                updated = True
+            if not gatekeeper.is_active:
+                gatekeeper.is_active = True
+                updated = True
+            if gatekeeper.is_root:
+                gatekeeper.is_root = False
+                updated = True
+            if not verify_password(settings.GATEKEEPER_PASSWORD, gatekeeper.password_hash):
+                gatekeeper.password_hash = hash_password(settings.GATEKEEPER_PASSWORD)
+                updated = True
+            if updated:
+                logger.info("Updated default gatekeeper credentials from env")
+            else:
+                logger.info("Default gatekeeper already exists with current env values")
 
         # Platform-level default billing rules
         existing_rules = (await db.execute(select(BillingRule).where(BillingRule.tenant_id.is_(None)))).scalars().first()

@@ -4,7 +4,7 @@ services:
     runtime: python
     rootDir: truckpark/backend
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:$PORT --timeout 120
+    startCommand: sh -c "alembic upgrade head && python -m app.db.seed && exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:$PORT --timeout 120"
     healthCheckPath: /health
     autoDeploy: true
     envVars:
