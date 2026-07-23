@@ -33,7 +33,13 @@ async def seed() -> None:
         # Root admin. Keep local/demo credentials deterministic so the
         # launcher can recreate a usable system without wiping volumes.
         result = await db.execute(select(User).where(User.is_root.is_(True)))
-        root = result.scalar_one_or_none()
+        roots = result.scalars().all()
+        root = roots[0] if roots else None
+        if len(roots) > 1:
+            logger.warning(
+                "Multiple root admin records found; using the first one for env sync."
+            )
+
         if root is None:
             root = User(
                 tenant_id=None,
@@ -73,7 +79,14 @@ async def seed() -> None:
 
         # Default gatekeeper
         result = await db.execute(select(User).where(User.mobile == settings.GATEKEEPER_MOBILE))
-        gatekeeper = result.scalar_one_or_none()
+        gatekeepers = result.scalars().all()
+        gatekeeper = gatekeepers[0] if gatekeepers else None
+        if len(gatekeepers) > 1:
+            logger.warning(
+                "Multiple gatekeeper records found for mobile %s; using the first one for env sync.",
+                settings.GATEKEEPER_MOBILE,
+            )
+
         if gatekeeper is None:
             gatekeeper = User(
                 tenant_id=None,
