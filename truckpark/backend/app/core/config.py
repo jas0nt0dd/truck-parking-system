@@ -58,6 +58,22 @@ class Settings(BaseSettings):
         if v.startswith("postgresql://"):
             return "postgresql+asyncpg://" + v[len("postgresql://"):]
 
+        # Remove libpq-style `sslmode` from the URL query so the SQLAlchemy
+        # asyncpg dialect does not forward it as a keyword arg to asyncpg.connect
+        # (asyncpg.connect doesn't accept an `sslmode` kwarg). Keep other
+        # query params intact.
+        try:
+            parsed = urlparse(v)
+            if parsed.query:
+                qs = [(k, val) for k, val in parse_qsl(parsed.query) if k.lower() != "sslmode"]
+                new_query = urlencode(qs)
+                if new_query != parsed.query:
+                    parsed = parsed._replace(query=new_query)
+                    return urlunparse(parsed)
+        except Exception:
+            # If anything goes wrong, fall back to returning original value.
+            return v
+
         return v
 
     # --- CORS ---
