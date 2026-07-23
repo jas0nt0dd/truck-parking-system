@@ -29,9 +29,11 @@ services:
       - key: GATEKEEPER_PASSWORD
         sync: false
       - key: CORS_ORIGINS
-        sync: false
+        value: '["https://truck-parking-system.vercel.app","https://truck-parking-system-htio.onrender.com","http://localhost:3000"]'
       - key: DB_POOL_SIZE
         value: "5"
+      - key: CORS_ORIGIN_REGEX
+        value: "https://.*\\.vercel\\.app"
       - key: DB_MAX_OVERFLOW
         value: "5"
       - key: DB_STATEMENT_CACHE_SIZE
