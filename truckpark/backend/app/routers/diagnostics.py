@@ -24,10 +24,16 @@ async def db_check():
     port = parsed.port or 5432
     qs = parse_qs(parsed.query)
     sslmode = qs.get("sslmode", [None])[0]
+    use_ssl = False
+    if sslmode is not None:
+        use_ssl = sslmode != "disable"
+    else:
+        use_ssl = host not in {"localhost", "127.0.0.1", "::1"}
 
     info = {
         "database_url": (host + (":" + str(port) if port else "")),
         "sslmode": sslmode,
+        "use_ssl": use_ssl,
     }
 
     # DNS resolution
@@ -41,7 +47,7 @@ async def db_check():
     # TCP / SSL connect
     try:
         timeout = 8
-        if sslmode and sslmode != "disable":
+        if use_ssl:
             context = ssl.create_default_context()
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host=host, port=port, ssl=context), timeout=timeout

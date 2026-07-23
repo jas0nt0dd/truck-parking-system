@@ -16,9 +16,17 @@ from app.core.config import settings
 # Build connect_args safely for asyncpg. Do NOT pass libpq-style
 # `sslmode` as a connect kwarg (asyncpg.connect doesn't accept it).
 connect_args = {}
-qs = parse_qs(urlparse(settings.DATABASE_URL).query)
+parsed_url = urlparse(settings.DATABASE_URL)
+qs = parse_qs(parsed_url.query)
 sslmode = qs.get("sslmode", [None])[0]
-if sslmode and sslmode.lower() != "disable":
+use_ssl = False
+if sslmode is not None:
+    use_ssl = sslmode.lower() != "disable"
+else:
+    host = parsed_url.hostname or ""
+    use_ssl = host not in {"localhost", "127.0.0.1", "::1"}
+
+if use_ssl:
     ctx = ssl.create_default_context()
     connect_args["ssl"] = ctx
 
