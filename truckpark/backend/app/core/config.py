@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 30
     DB_STATEMENT_CACHE_SIZE: int = 0
 
+    # When connecting to some managed DB/proxy endpoints the TLS chain
+    # may include intermediates that aren't present in the container's
+    # root store. In that case you can opt-out of strict verification
+    # by setting `DB_SSL_NO_VERIFY=true` in the environment. This is
+    # intentionally opt-in and should only be used when you trust the
+    # upstream endpoint.
+    DB_SSL_NO_VERIFY: bool = False
+
+    @field_validator("DB_SSL_NO_VERIFY", mode="before")
+    @classmethod
+    def parse_bool(cls, v):
+        if isinstance(v, str):
+            return v.strip().lower() in {"1", "true", "yes", "on"}
+        return v
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def normalize_database_url(cls, v):

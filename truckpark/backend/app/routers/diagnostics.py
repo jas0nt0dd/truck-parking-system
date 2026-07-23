@@ -49,6 +49,9 @@ async def db_check():
         timeout = 8
         if use_ssl:
             context = ssl.create_default_context()
+            if getattr(settings, "DB_SSL_NO_VERIFY", False):
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host=host, port=port, ssl=context), timeout=timeout
             )

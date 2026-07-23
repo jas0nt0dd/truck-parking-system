@@ -28,6 +28,11 @@ else:
 
 if use_ssl:
     ctx = ssl.create_default_context()
+    # Allow opt-in disabling of certificate verification for environments
+    # where the TLS chain cannot be validated by the container's root CA store.
+    if getattr(settings, "DB_SSL_NO_VERIFY", False):
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = ctx
 
 # SQLAlchemy/asyncpg support a prepared statement cache size DBAPI arg.
