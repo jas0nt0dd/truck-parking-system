@@ -101,7 +101,18 @@ class Settings(BaseSettings):
     @classmethod
     def split_cors(cls, v):
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            val = v.strip()
+            # Support JSON-style list strings like '["https://a","https://b"]'
+            if val.startswith("[") and val.endswith("]"):
+                try:
+                    import json
+
+                    parsed = json.loads(val)
+                    return [str(origin).strip() for origin in parsed if origin]
+                except Exception:
+                    # fall through to CSV parsing if JSON decode fails
+                    pass
+            return [origin.strip().strip('"').strip("'") for origin in v.split(",") if origin.strip()]
         return v
 
     # --- MSG91 (defaults are blank; real values come from SystemSettings in DB
