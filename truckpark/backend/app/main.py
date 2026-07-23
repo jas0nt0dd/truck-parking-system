@@ -70,9 +70,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.get("/health", tags=["health"])
 async def health_check():
+    # Lightweight health check used by the platform. Do NOT perform
+    # a DB probe here because the platform's internal health check
+    # must succeed quickly even if the database is temporarily
+    # unreachable. Use `/health/db` to verify DB connectivity.
+    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+
+
+@app.get("/health/db", tags=["health"])
+async def health_check_db():
     async with AsyncSessionLocal() as db:
         await db.execute(text("SELECT 1"))
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV, "database": "ok"}
+    return {"status": "ok", "database": "ok"}
 
 
 API_PREFIX = settings.API_V1_PREFIX
