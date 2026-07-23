@@ -7,6 +7,7 @@ will fail fast with a clear error instead of crashing later at runtime.
 """
 from functools import lru_cache
 from typing import List, Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
         return v
 
     # --- Security / JWT ---
-    SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION"
+    SECRET_KEY: str = "jshdhsdbsjdeyubxjshdjhsdsjnsjjdjhdjsdjshdjshdjhsd"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -49,10 +50,22 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def normalize_database_url(cls, v):
-        if isinstance(v, str) and v.startswith("postgres://"):
-            return "postgresql+asyncpg://" + v[len("postgres://"):]
-        if isinstance(v, str) and v.startswith("postgresql://"):
-            return "postgresql+asyncpg://" + v[len("postgresql://"):]
+        if not isinstance(v, str):
+            return v
+
+        if v.startswith("postgres://"):
+            v = "postgresql+asyncpg://" + v[len("postgres://"):]
+        elif v.startswith("postgresql://"):
+            v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+
+        if "sslmode=" in v:
+            parsed = urlparse(v)
+            params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+            sslmode = params.pop("sslmode", "").lower()
+            if sslmode:
+                params["ssl"] = "true" if sslmode != "disable" else "false"
+                v = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+
         return v
 
     # --- CORS ---
