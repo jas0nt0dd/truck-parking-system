@@ -54,17 +54,9 @@ class Settings(BaseSettings):
             return v
 
         if v.startswith("postgres://"):
-            v = "postgresql+asyncpg://" + v[len("postgres://"):]
-        elif v.startswith("postgresql://"):
-            v = "postgresql+asyncpg://" + v[len("postgresql://"):]
-
-        if "sslmode=" in v:
-            parsed = urlparse(v)
-            params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-            sslmode = params.pop("sslmode", "").lower()
-            if sslmode:
-                params["ssl"] = "true" if sslmode != "disable" else "false"
-                v = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+            return "postgresql+asyncpg://" + v[len("postgres://"):]
+        if v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v[len("postgresql://"):]
 
         return v
 
