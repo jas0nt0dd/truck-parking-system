@@ -5,7 +5,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
 
-const apiOrigin = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+// If NEXT_PUBLIC_API_URL is not set (e.g., frontend build missing env),
+// fall back to the known Render backend URL so deployed frontend can reach API.
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "https://truck-parking-system-htio.onrender.com";
 const apiBaseUrl = apiOrigin ? `${apiOrigin}/api/v1` : "/api/v1";
 
 export const api = axios.create({
