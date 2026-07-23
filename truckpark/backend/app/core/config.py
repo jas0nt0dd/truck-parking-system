@@ -52,18 +52,19 @@ class Settings(BaseSettings):
     def normalize_database_url(cls, v):
         if not isinstance(v, str):
             return v
-
+        # Convert postgres scheme to SQLAlchemy asyncpg scheme if present
+        new_v = v
         if v.startswith("postgres://"):
-            return "postgresql+asyncpg://" + v[len("postgres://"):]
-        if v.startswith("postgresql://"):
-            return "postgresql+asyncpg://" + v[len("postgresql://"):]
+            new_v = "postgresql+asyncpg://" + v[len("postgres://"):]
+        elif v.startswith("postgresql://"):
+            new_v = "postgresql+asyncpg://" + v[len("postgresql://"):]
 
         # Remove libpq-style `sslmode` from the URL query so the SQLAlchemy
         # asyncpg dialect does not forward it as a keyword arg to asyncpg.connect
         # (asyncpg.connect doesn't accept an `sslmode` kwarg). Keep other
         # query params intact.
         try:
-            parsed = urlparse(v)
+            parsed = urlparse(new_v)
             if parsed.query:
                 qs = [(k, val) for k, val in parse_qsl(parsed.query) if k.lower() != "sslmode"]
                 new_query = urlencode(qs)
@@ -71,8 +72,10 @@ class Settings(BaseSettings):
                     parsed = parsed._replace(query=new_query)
                     return urlunparse(parsed)
         except Exception:
-            # If anything goes wrong, fall back to returning original value.
-            return v
+            # If anything goes wrong, fall back to returning converted value.
+            return new_v
+
+        return new_v
 
         return v
 
