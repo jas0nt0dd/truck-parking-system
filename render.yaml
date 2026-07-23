@@ -30,6 +30,18 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: '["https://truck-parking-system.vercel.app","https://truck-parking-system-htio.onrender.com","http://localhost:3000"]'
+      - key: MSG91_AUTHKEY
+        sync: false
+      - key: MSG91_SENDER_ID
+        value: TRUCKPARKING
+      - key: MSG91_WHATSAPP_NUMBER
+        value: 917200775876
+      - key: MSG91_BASE_URL
+        value: https://control.msg91.com/api/v5
+      - key: MSG91_ENTRY_TEMPLATE_NAME
+        value: truck_entry_notification
+      - key: MSG91_EXIT_TEMPLATE_NAME
+        value: truck_exit_receipt
       - key: DB_POOL_SIZE
         value: "5"
       - key: CORS_ORIGIN_REGEX
