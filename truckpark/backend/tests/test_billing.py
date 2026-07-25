@@ -60,6 +60,12 @@ def test_no_active_rules_uses_default_fallback():
     assert breakdown[0]["rule_name"] == "First 12 Hours"
 
 
+def test_zero_duration_matches_first_bracket():
+    total, breakdown = calculate_charge(0, DEFAULT_RULES)
+    assert total == Decimal("100.00")
+    assert breakdown[0]["rule_name"] == "First 12 Hours"
+
+
 def test_negative_duration_raises():
     with pytest.raises(BillingError):
         calculate_charge(-1, DEFAULT_RULES)

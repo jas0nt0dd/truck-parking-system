@@ -55,15 +55,18 @@ def calculate_charge(
             from_hours = Decimal(str(rule.from_hours))
             charge = Decimal(str(rule.charge))
 
+            duration_amount = Decimal(str(duration_hours))
             if rule.to_hours is not None:
                 to_hours = Decimal(str(rule.to_hours))
-                if from_hours < Decimal(str(duration_hours)) <= to_hours:
+                if (from_hours == Decimal("0.00") and duration_amount == Decimal("0.00")) or (
+                    from_hours < duration_amount <= to_hours
+                ):
                     total += charge
                     breakdown.append({"rule_name": rule.rule_name, "amount": str(charge)})
             else:
                 # Open-ended rule, e.g. "Additional Day" beyond from_hours.
-                if Decimal(str(duration_hours)) > from_hours:
-                    extra_hours = Decimal(str(duration_hours)) - from_hours
+                if duration_amount > from_hours:
+                    extra_hours = duration_amount - from_hours
                     days = math.ceil(float(extra_hours) / 24)
                     extra = (charge * days).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                     total += extra
