@@ -286,7 +286,7 @@ async def preview_exit(
 ):
     result = await db.execute(
         select(ParkingSession)
-        .options(selectinload(ParkingSession.truck))
+        .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
         .where(ParkingSession.id == session_id)
     )
     session = result.scalar_one_or_none()
@@ -297,6 +297,13 @@ async def preview_exit(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session already exited")
 
     dur_hours = duration_hours(session.entry_time, utc_now())
+
+    response_data = {
+        "session": session,
+        "amount_due": Decimal("0.00"),
+        "duration_hours": dur_hours,
+        "billing_breakdown": [],
+    }
 
     try:
         rule_filters = [BillingRule.is_active == True]  # noqa: E712
@@ -311,17 +318,15 @@ async def preview_exit(
             rules,
             allow_pending_on_error=True,
         )
+        response_data["session"] = SessionOut.model_validate(session)
+        response_data["amount_due"] = amount
+        response_data["billing_breakdown"] = breakdown
+    except HTTPException:
+        raise
     except Exception:
-        logger.exception("Preview exit charge calculation failed for session %s", session_id)
-        amount = Decimal("0.00")
-        breakdown = []
+        logger.exception("Preview exit failed for session %s", session_id)
 
-    return ExitResponse(
-        session=SessionOut.model_validate(session),
-        amount_due=amount,
-        duration_hours=dur_hours,
-        billing_breakdown=breakdown,
-    )
+    return response_data
 
 
 def _build_billing_rules(db: AsyncSession, current_user: User):
