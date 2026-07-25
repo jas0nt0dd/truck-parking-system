@@ -40,7 +40,7 @@ async def _send_exit_notification_bg(session_id: uuid.UUID, amount, payment_mode
             await db.rollback()
 
 
-async def _send_pending_bill_notification_bg(session_id: uuid.UUID, bill_url: str) -> None:
+async def _send_bill_notification_bg(session_id: uuid.UUID, bill_url: str) -> None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(ParkingSession)
@@ -51,10 +51,14 @@ async def _send_pending_bill_notification_bg(session_id: uuid.UUID, bill_url: st
         if session is None or session.payment is None:
             return
         try:
-            await notify_pending_bill(db, session, session.truck, bill_url)
+            if session.payment.payment_status == PaymentStatus.paid:
+                payment_mode = session.payment.payment_mode.value if session.payment.payment_mode else "Paid"
+                await notify_exit(db, session, session.truck, session.payment.amount, payment_mode)
+            else:
+                await notify_pending_bill(db, session, session.truck, bill_url)
             await db.commit()
         except Exception:  # noqa: BLE001
-            logger.exception("Background pending bill notification failed")
+            logger.exception("Background bill notification failed")
             await db.rollback()
 
 
@@ -62,6 +66,7 @@ async def _send_pending_bill_notification_bg(session_id: uuid.UUID, bill_url: st
 async def mark_paid(
     session_id: uuid.UUID,
     payload: MarkPaidRequest,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_gatekeeper_or_admin),
@@ -103,9 +108,8 @@ async def mark_paid(
     await db.commit()
 
     if payload.send_notification:
-        background_tasks.add_task(
-            _send_exit_notification_bg, session.id, payment.amount, payment.payment_mode.value
-        )
+        bill_url = request.url_for("payment_bill", session_id=str(session.id))
+        background_tasks.add_task(_send_bill_notification_bg, session.id, bill_url)
 
     return SessionOut.model_validate(session)
 
@@ -133,7 +137,7 @@ async def send_bill_link(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Can only send bill for exited sessions")
 
     bill_url = request.url_for("payment_bill", session_id=str(session.id))
-    background_tasks.add_task(_send_pending_bill_notification_bg, session.id, bill_url)
+    background_tasks.add_task(_send_bill_notification_bg, session.id, bill_url)
 
     return SessionOut.model_validate(session)
 

@@ -152,25 +152,23 @@ export default function GatekeeperHistoryPage() {
               </div>
               {row.status === "exited" && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {row.payment_status === "pending" && (
-                    <button
-                      type="button"
-                      onClick={() => handleSendBillLink(row.id)}
-                      disabled={actionLoading && activeActionId === row.id}
-                      className="rounded-lg border border-yard-200 bg-yard-50 px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
-                    >
-                      {actionLoading && activeActionId === row.id ? "Sending…" : "Send Bill Link"}
-                    </button>
-                  )}
                   <button
-                    type="button"
-                    onClick={() => handleDownloadBill(row.id, row.truck_number)}
-                    disabled={actionLoading && activeActionId === row.id}
-                    className="rounded-lg border border-yard-200 bg-transparent px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
-                  >
-                    {actionLoading && activeActionId === row.id ? "Downloading…" : "Download Bill"}
-                  </button>
-                </div>
+                type="button"
+                onClick={() => handleSendBillLink(row.id)}
+                disabled={actionLoading && activeActionId === row.id}
+                className="rounded-lg border border-yard-200 bg-yard-50 px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
+              >
+                {actionLoading && activeActionId === row.id ? "Sending…" : "Send Bill Link"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadBill(row.id, row.truck_number)}
+                disabled={actionLoading && activeActionId === row.id}
+                className="rounded-lg border border-yard-200 bg-transparent px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
+              >
+                {actionLoading && activeActionId === row.id ? "Downloading…" : "Download Bill"}
+              </button>
+            </div>
               )}
             </div>
           ))}

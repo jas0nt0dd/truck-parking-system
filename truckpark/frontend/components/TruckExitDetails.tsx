@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Banknote, Smartphone, FileClock, Check, ArrowLeft } from "lucide-react";
+import { Banknote, Smartphone, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { downloadBillPdf, exitSession, markPaid, sendBillLink, ExitResponse, SessionSearchItem } from "@/lib/sessions";
 import { formatCurrency, formatDateTime, formatDuration, cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import { apiErrorMessage } from "@/lib/api";
 const PAYMENT_MODES = [
   { value: "cash" as const, label: "Cash", icon: Banknote },
   { value: "upi" as const, label: "UPI", icon: Smartphone },
-  { value: "credit" as const, label: "Credit", icon: FileClock },
 ];
 
 export function TruckExitDetails({
@@ -25,7 +24,7 @@ export function TruckExitDetails({
   const [exitData, setExitData] = useState<ExitResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "credit" | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | null>("cash");
   const [submitting, setSubmitting] = useState(false);
   const [sendingLink, setSendingLink] = useState(false);
   const [downloadingBill, setDownloadingBill] = useState(false);
@@ -138,7 +137,10 @@ export function TruckExitDetails({
             <div className="mt-4 rounded bg-yard-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-yard-500">Amount Due</p>
               <p className="mt-1 text-3xl font-bold text-yard-900">{formatCurrency(exitData.amount_due)}</p>
-              <ul className="mt-2 space-y-0.5 text-xs text-yard-500">
+              <p className="mt-2 text-xs text-yard-500">
+                This session is recorded as pending until payment is collected. You can mark paid now or send a bill link.
+              </p>
+              <ul className="mt-3 space-y-0.5 text-xs text-yard-500">
                 {exitData.billing_breakdown.map((b, i) => (
                   <li key={i}>
                     {b.rule_name}: {formatCurrency(b.amount)}{b.days ? ` (${b.days} day${b.days > 1 ? "s" : ""})` : ""}
@@ -148,7 +150,7 @@ export function TruckExitDetails({
             </div>
 
             <p className="mb-2 mt-4 text-sm font-medium text-yard-700">Payment Mode</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {PAYMENT_MODES.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}

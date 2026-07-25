@@ -12,8 +12,8 @@ export interface Truck {
 export interface Payment {
   id: string;
   amount: string;
-  payment_mode?: "cash" | "upi" | "credit" | null;
-  payment_status: "paid" | "pending" | "credit";
+  payment_mode?: "cash" | "upi" | null;
+  payment_status: "paid" | "pending";
   paid_at?: string | null;
   billing_breakdown?: { rule_name: string; amount: string; days?: number }[] | null;
 }
@@ -48,7 +48,7 @@ export interface SessionSearchItem {
   entry_time: string;
   exit_time?: string | null;
   status: "inside" | "exited";
-  payment_status?: "paid" | "pending" | "credit" | null;
+  payment_status?: "paid" | "pending" | null;
   duration_hours?: number | null;
 }
 
@@ -88,7 +88,7 @@ export async function exitSession(sessionId: string, exitPhotoUrl?: string): Pro
 
 export async function markPaid(
   sessionId: string,
-  paymentMode: "cash" | "upi" | "credit",
+  paymentMode: "cash" | "upi",
   amount?: string,
   sendNotification = true
 ): Promise<ParkingSession> {
