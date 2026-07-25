@@ -49,6 +49,8 @@ export interface SessionSearchItem {
   exit_time?: string | null;
   status: "inside" | "exited";
   payment_status?: "paid" | "pending" | null;
+  payment_mode?: "cash" | "upi" | null;
+  payment_amount?: string | null;
   duration_hours?: number | null;
 }
 
@@ -81,8 +83,22 @@ export async function fetchHistory(params: {
   return data as { items: SessionSearchItem[]; total: number; page: number; page_size: number };
 }
 
-export async function exitSession(sessionId: string, exitPhotoUrl?: string): Promise<ExitResponse> {
-  const { data } = await api.post(`/sessions/${sessionId}/exit`, { exit_photo_url: exitPhotoUrl });
+export async function exitSession(
+  sessionId: string,
+  paymentMode?: "cash" | "upi",
+  exitPhotoUrl?: string,
+  sendNotification = true
+): Promise<ExitResponse> {
+  const { data } = await api.post(`/sessions/${sessionId}/exit`, {
+    payment_mode: paymentMode,
+    exit_photo_url: exitPhotoUrl,
+    send_notification: sendNotification,
+  });
+  return data;
+}
+
+export async function previewExit(sessionId: string): Promise<ExitResponse> {
+  const { data } = await api.post(`/sessions/${sessionId}/preview-exit`);
   return data;
 }
 

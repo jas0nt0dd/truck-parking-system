@@ -182,6 +182,8 @@ async def search_sessions(
                 exit_time=session.exit_time,
                 status=session.status,
                 payment_status=payment.payment_status if payment else None,
+                payment_mode=payment.payment_mode if payment else None,
+                payment_amount=payment.amount if payment else None,
                 duration_hours=dur,
             )
         )
@@ -244,11 +246,53 @@ async def session_history(
                 exit_time=session.exit_time,
                 status=session.status,
                 payment_status=payment.payment_status if payment else None,
+                payment_mode=payment.payment_mode if payment else None,
+                payment_amount=payment.amount if payment else None,
                 duration_hours=dur,
             )
         )
 
     return PaginatedSessions(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post("/{session_id}/preview-exit", response_model=ExitResponse)
+async def preview_exit(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_gatekeeper_or_admin),
+):
+    result = await db.execute(
+        select(ParkingSession)
+        .options(selectinload(ParkingSession.truck))
+        .where(ParkingSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    require_same_tenant(session, current_user)
+    if session.status == SessionStatus.exited:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session already exited")
+
+    dur_hours = duration_hours(session.entry_time, utc_now())
+
+    rule_filters = [BillingRule.is_active == True]  # noqa: E712
+    rule_scope = tenant_filter(BillingRule, current_user)
+    if rule_scope is not None:
+        rule_filters.append(rule_scope)
+    rules_result = await db.execute(select(BillingRule).where(*rule_filters))
+    rules = rules_result.scalars().all()
+
+    try:
+        amount, breakdown = calculate_charge(dur_hours, rules)
+    except BillingError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    return ExitResponse(
+        session=SessionOut.model_validate(session),
+        amount_due=amount,
+        duration_hours=dur_hours,
+        billing_breakdown=breakdown,
+    )
 
 
 @router.post("/{session_id}/exit", response_model=ExitResponse)
@@ -295,7 +339,10 @@ async def exit_truck(
         tenant_id=current_user.tenant_id,
         session_id=session.id,
         amount=amount,
-        payment_status=PaymentStatus.pending,
+        payment_mode=payload.payment_mode,
+        payment_status=(PaymentStatus.paid if payload.payment_mode in ("cash", "upi") else PaymentStatus.pending),
+        paid_at=utc_now() if payload.payment_mode in ("cash", "upi") else None,
+        gatekeeper_id=current_user.id if payload.payment_mode in ("cash", "upi") else None,
         billing_breakdown=breakdown,
     )
     db.add(payment)
@@ -304,7 +351,9 @@ async def exit_truck(
 
     if payload.send_notification:
         bill_url = request.url_for("payment_bill", session_id=str(session.id))
-        background_tasks.add_task(_send_pending_bill_notification_bg, session.id, bill_url)
+        background_tasks.add_task(_send_bill_notification_bg, session.id, bill_url)
+
+    await db.commit()
 
     return ExitResponse(
         session=SessionOut.model_validate(session),

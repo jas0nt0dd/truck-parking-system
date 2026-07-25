@@ -86,9 +86,7 @@ async def mark_paid(
     payment.payment_mode = payload.payment_mode
     if payload.amount is not None:
         payment.amount = payload.amount
-    payment.payment_status = (
-        PaymentStatus.credit if payload.payment_mode == "credit" else PaymentStatus.paid
-    )
+    payment.payment_status = PaymentStatus.paid
     payment.paid_at = utc_now()
     payment.gatekeeper_id = current_user.id
 

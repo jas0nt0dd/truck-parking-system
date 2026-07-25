@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Banknote, Smartphone, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { downloadBillPdf, exitSession, markPaid, sendBillLink, ExitResponse, SessionSearchItem } from "@/lib/sessions";
+import { downloadBillPdf, exitSession, previewExit, sendBillLink, ExitResponse, SessionSearchItem } from "@/lib/sessions";
 import { formatCurrency, formatDateTime, formatDuration, cn } from "@/lib/utils";
 import { apiErrorMessage } from "@/lib/api";
 
@@ -24,7 +24,7 @@ export function TruckExitDetails({
   const [exitData, setExitData] = useState<ExitResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | null>("cash");
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sendingLink, setSendingLink] = useState(false);
   const [downloadingBill, setDownloadingBill] = useState(false);
@@ -34,7 +34,7 @@ export function TruckExitDetails({
     let cancelled = false;
     (async () => {
       try {
-        const data = await exitSession(sessionItem.id);
+        const data = await previewExit(sessionItem.id);
         if (!cancelled) setExitData(data);
       } catch (err) {
         if (!cancelled) setError(apiErrorMessage(err, "Could not calculate charges"));
@@ -52,7 +52,7 @@ export function TruckExitDetails({
     setSubmitting(true);
     setError(null);
     try {
-      await markPaid(sessionItem.id, paymentMode);
+      await exitSession(sessionItem.id, paymentMode);
       setDone(true);
       setTimeout(onComplete, 2000);
     } catch (err) {
@@ -66,6 +66,11 @@ export function TruckExitDetails({
     setSendingLink(true);
     setError(null);
     try {
+      if (!done) {
+        await exitSession(sessionItem.id, undefined, undefined, false);
+        setDone(true);
+        setTimeout(onComplete, 2000);
+      }
       await sendBillLink(sessionItem.id);
     } catch (err) {
       setError(apiErrorMessage(err, "Could not send bill link"));
@@ -74,10 +79,29 @@ export function TruckExitDetails({
     }
   }
 
+  async function handleExitPending() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await exitSession(sessionItem.id, undefined, undefined, true);
+      setDone(true);
+      setTimeout(onComplete, 2000);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not exit as pending"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleDownloadBill() {
     setDownloadingBill(true);
     setError(null);
     try {
+      if (!done) {
+        await exitSession(sessionItem.id, undefined, undefined, false);
+        setDone(true);
+        setTimeout(onComplete, 2000);
+      }
       const blob = await downloadBillPdf(sessionItem.id);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -138,7 +162,7 @@ export function TruckExitDetails({
               <p className="text-xs font-semibold uppercase tracking-wide text-yard-500">Amount Due</p>
               <p className="mt-1 text-3xl font-bold text-yard-900">{formatCurrency(exitData.amount_due)}</p>
               <p className="mt-2 text-xs text-yard-500">
-                This session is recorded as pending until payment is collected. You can mark paid now or send a bill link.
+                If you do not collect payment now, this exit will remain pending and a bill link will be available in history.
               </p>
               <ul className="mt-3 space-y-0.5 text-xs text-yard-500">
                 {exitData.billing_breakdown.map((b, i) => (
@@ -176,7 +200,16 @@ export function TruckExitDetails({
                 loading={submitting}
                 onClick={handleMarkPaid}
               >
-                Mark as Paid &amp; Exit
+                Collect Payment &amp; Exit
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                onClick={handleExitPending}
+                loading={submitting}
+              >
+                Exit as Pending
               </Button>
               <Button
                 variant="secondary"

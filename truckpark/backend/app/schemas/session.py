@@ -46,6 +46,7 @@ class EntryCreate(BaseModel):
 
 class ExitRequest(BaseModel):
     exit_photo_url: Optional[str] = None
+    payment_mode: Optional[PaymentMode] = None
     send_notification: bool = True
 
 
@@ -97,6 +98,8 @@ class SessionSearchItem(BaseModel):
     exit_time: Optional[datetime] = None
     status: SessionStatus
     payment_status: Optional[PaymentStatus] = None
+    payment_mode: Optional[PaymentMode] = None
+    payment_amount: Optional[Decimal] = None
     duration_hours: Optional[float] = None
 
 
