@@ -54,9 +54,10 @@ def test_open_ended_two_extra_days():
     assert breakdown[0]["days"] == 2
 
 
-def test_no_active_rules_raises():
-    with pytest.raises(BillingError):
-        calculate_charge(5, [])
+def test_no_active_rules_uses_default_fallback():
+    total, breakdown = calculate_charge(5, [])
+    assert total == Decimal("100.00")
+    assert breakdown[0]["rule_name"] == "First 12 Hours"
 
 
 def test_negative_duration_raises():
@@ -64,7 +65,8 @@ def test_negative_duration_raises():
         calculate_charge(-1, DEFAULT_RULES)
 
 
-def test_inactive_rule_ignored():
+def test_inactive_rule_uses_default_fallback():
     rules = [FakeRule("Inactive", 0, 100, 999, is_active=False)]
-    with pytest.raises(BillingError):
-        calculate_charge(5, rules)
+    total, breakdown = calculate_charge(5, rules)
+    assert total == Decimal("100.00")
+    assert breakdown[0]["rule_name"] == "First 12 Hours"
