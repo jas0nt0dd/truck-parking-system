@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Banknote, Smartphone, FileClock, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { exitSession, markPaid, ExitResponse, SessionSearchItem } from "@/lib/sessions";
+import { downloadBillPdf, exitSession, markPaid, sendBillLink, ExitResponse, SessionSearchItem } from "@/lib/sessions";
 import { formatCurrency, formatDateTime, formatDuration, cn } from "@/lib/utils";
 import { apiErrorMessage } from "@/lib/api";
 
@@ -27,6 +27,8 @@ export function TruckExitDetails({
   const [error, setError] = useState<string | null>(null);
   const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "credit" | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingLink, setSendingLink] = useState(false);
+  const [downloadingBill, setDownloadingBill] = useState(false);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -58,6 +60,38 @@ export function TruckExitDetails({
       setError(apiErrorMessage(err, "Could not mark as paid"));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleSendBillLink() {
+    setSendingLink(true);
+    setError(null);
+    try {
+      await sendBillLink(sessionItem.id);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not send bill link"));
+    } finally {
+      setSendingLink(false);
+    }
+  }
+
+  async function handleDownloadBill() {
+    setDownloadingBill(true);
+    setError(null);
+    try {
+      const blob = await downloadBillPdf(sessionItem.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `truckpark_bill_${sessionItem.truck_number}_${sessionItem.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not download bill"));
+    } finally {
+      setDownloadingBill(false);
     }
   }
 
@@ -132,15 +166,35 @@ export function TruckExitDetails({
               ))}
             </div>
 
-            <Button
-              size="lg"
-              className="mt-5 w-full"
-              disabled={!paymentMode}
-              loading={submitting}
-              onClick={handleMarkPaid}
-            >
-              Mark as Paid &amp; Exit
-            </Button>
+            <div className="mt-5 grid gap-3">
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={!paymentMode}
+                loading={submitting}
+                onClick={handleMarkPaid}
+              >
+                Mark as Paid &amp; Exit
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                onClick={handleSendBillLink}
+                loading={sendingLink}
+              >
+                Send Bill Link via WhatsApp
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="w-full"
+                onClick={handleDownloadBill}
+                loading={downloadingBill}
+              >
+                Download Bill PDF
+              </Button>
+            </div>
           </>
         )}
       </div>

@@ -276,3 +276,53 @@ async def notify_exit(
             db, session.id, truck.driver_mobile, NotificationType.exit,
             NotificationStatus.failed, error=str(exc), tenant_id=session.tenant_id,
         )
+
+
+async def notify_pending_bill(
+    db: AsyncSession, session: ParkingSession, truck: Truck, bill_url: str
+) -> None:
+    if session.exit_time is None:
+        await _record_notification(
+            db, session.id, truck.driver_mobile, NotificationType.exit,
+            NotificationStatus.failed,
+            error="Cannot send pending bill before exit_time is set",
+            tenant_id=session.tenant_id,
+        )
+        return
+
+    config = await load_msg91_config(db, session.tenant_id)
+    if not config.enabled:
+        logger.info("Notifications disabled in system settings; skipping pending bill notification")
+        return
+    if not config.is_configured:
+        await _record_notification(
+            db, session.id, truck.driver_mobile, NotificationType.exit,
+            NotificationStatus.failed, error="MSG91 not configured", tenant_id=session.tenant_id,
+        )
+        return
+    try:
+        provider = MSG91WhatsAppProvider(config)
+        entry_time_str = to_display_tz(session.entry_time).strftime("%d-%b-%Y %I:%M %p")
+        exit_time_str = to_display_tz(session.exit_time).strftime("%d-%b-%Y %I:%M %p")
+        dur_str = format_duration(duration_hours(session.entry_time, session.exit_time))
+        parking_name = config.parking_name or settings.APP_NAME
+        await provider.send_exit_message(
+            truck.driver_mobile,
+            truck.truck_number,
+            parking_name,
+            entry_time_str,
+            exit_time_str,
+            dur_str,
+            payment.amount,
+            f"Pending — pay here: {bill_url}",
+        )
+        await _record_notification(
+            db, session.id, truck.driver_mobile, NotificationType.exit,
+            NotificationStatus.sent, tenant_id=session.tenant_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("MSG91 pending bill notification failed: %s", exc)
+        await _record_notification(
+            db, session.id, truck.driver_mobile, NotificationType.exit,
+            NotificationStatus.failed, error=str(exc), tenant_id=session.tenant_id,
+        )

@@ -1,17 +1,20 @@
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import require_gatekeeper_or_admin, require_same_tenant, tenant_filter
 from app.db.session import AsyncSessionLocal, get_db
-from app.models.parking_session import ParkingSession
+from app.models.parking_session import ParkingSession, SessionStatus
 from app.models.payment import Payment, PaymentStatus
 from app.models.user import User
 from app.schemas.session import MarkPaidRequest, SessionOut
-from app.services.messaging import notify_exit
+from app.services.exports import export_session_bill_to_pdf
+from app.services.messaging import notify_exit, notify_pending_bill
 from app.utils.logging import get_logger
 from app.utils.time import utc_now
 
@@ -34,6 +37,24 @@ async def _send_exit_notification_bg(session_id: uuid.UUID, amount, payment_mode
             await db.commit()
         except Exception:  # noqa: BLE001
             logger.exception("Background exit notification failed")
+            await db.rollback()
+
+
+async def _send_pending_bill_notification_bg(session_id: uuid.UUID, bill_url: str) -> None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ParkingSession)
+            .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
+            .where(ParkingSession.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None or session.payment is None:
+            return
+        try:
+            await notify_pending_bill(db, session, session.truck, bill_url)
+            await db.commit()
+        except Exception:  # noqa: BLE001
+            logger.exception("Background pending bill notification failed")
             await db.rollback()
 
 
@@ -87,3 +108,59 @@ async def mark_paid(
         )
 
     return SessionOut.model_validate(session)
+
+
+@router.post("/{session_id}/send-bill", response_model=SessionOut)
+async def send_bill_link(
+    session_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_gatekeeper_or_admin),
+):
+    result = await db.execute(
+        select(ParkingSession)
+        .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
+        .where(ParkingSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    require_same_tenant(session, current_user)
+    if session.payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment record not found for this session")
+    if session.status != SessionStatus.exited:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Can only send bill for exited sessions")
+
+    bill_url = request.url_for("payment_bill", session_id=str(session.id))
+    background_tasks.add_task(_send_pending_bill_notification_bg, session.id, bill_url)
+
+    return SessionOut.model_validate(session)
+
+
+@router.get("/{session_id}/bill", name="payment_bill")
+async def download_bill(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_gatekeeper_or_admin),
+):
+    result = await db.execute(
+        select(ParkingSession)
+        .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
+        .where(ParkingSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if session is None or session.payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
+    if current_user is not None:
+        require_same_tenant(session, current_user)
+    if session.status != SessionStatus.exited:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bill available only for exited sessions")
+
+    content = export_session_bill_to_pdf(session)
+    filename = f"truckpark_bill_{session.truck.truck_number}_{session.id}.pdf"
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

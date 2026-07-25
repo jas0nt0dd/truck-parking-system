@@ -46,6 +46,7 @@ class EntryCreate(BaseModel):
 
 class ExitRequest(BaseModel):
     exit_photo_url: Optional[str] = None
+    send_notification: bool = True
 
 
 class PaymentOut(BaseModel):

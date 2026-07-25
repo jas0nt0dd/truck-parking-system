@@ -18,6 +18,8 @@ export const api = axios.create({
   },
 });
 
+export const apiBaseUrlString = apiBaseUrl;
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getAccessToken();
   if (token) {

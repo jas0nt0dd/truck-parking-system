@@ -6,6 +6,8 @@ import string
 import uuid
 from datetime import datetime, timezone
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -88,7 +90,7 @@ async def create_subscription_request(
 
 @router.get("/platform/subscription-requests", response_model=list[SubscriptionRequestOut])
 async def list_subscription_requests(
-    status_filter: SubscriptionRequestStatus | None = Query(default=None, alias="status"),
+    status_filter: Optional[SubscriptionRequestStatus] = Query(default=None, alias="status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_platform_admin),
 ):

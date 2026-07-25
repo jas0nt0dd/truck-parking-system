@@ -85,6 +85,84 @@ def export_sessions_to_excel(
     return buffer.getvalue()
 
 
+def export_session_bill_to_pdf(session: ParkingSession) -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=15 * mm, rightMargin=15 * mm, topMargin=15 * mm, bottomMargin=15 * mm,
+    )
+    styles = getSampleStyleSheet()
+    elements = [
+        Paragraph("Truck Parking Bill", styles["Title"]),
+        Spacer(1, 10),
+        Paragraph(f"Truck number: {session.truck.truck_number}", styles["Normal"]),
+        Paragraph(f"Driver mobile: {session.truck.driver_mobile}", styles["Normal"]),
+        Paragraph(
+            f"Entry time: {to_display_tz(session.entry_time).strftime('%d-%b-%Y %I:%M %p')}",
+            styles["Normal"],
+        ),
+        Paragraph(
+            f"Exit time: {to_display_tz(session.exit_time).strftime('%d-%b-%Y %I:%M %p') if session.exit_time else '—'}",
+            styles["Normal"],
+        ),
+        Paragraph(
+            f"Duration: {format_duration(duration_hours(session.entry_time, session.exit_time))}",
+            styles["Normal"],
+        ),
+        Spacer(1, 10),
+    ]
+
+    payment = session.payment
+    if payment is None:
+        raise ValueError("Cannot generate bill for session without payment")
+
+    status_text = payment.payment_status.value.capitalize()
+    mode_text = payment.payment_mode.value if payment.payment_mode else "Pending"
+    amount_text = f"₹{float(payment.amount):.0f}"
+
+    bill_data = [
+        ["Payment status", status_text],
+        ["Payment mode", mode_text],
+        ["Amount", amount_text],
+    ]
+    bill_table = Table(bill_data, colWidths=[60 * mm, 90 * mm])
+    bill_table.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+        ])
+    )
+    elements.append(bill_table)
+    elements.append(Spacer(1, 20))
+
+    elements.append(Paragraph("Billing breakdown", styles["Heading2"]))
+    elements.append(Spacer(1, 6))
+    breakdown_data = [["Rule", "Amount"]]
+    for item in payment.billing_breakdown or []:
+        label = item.get("rule_name", "Charge")
+        amount = f"₹{float(item.get('amount', 0)):.0f}"
+        breakdown_data.append([label, amount])
+    breakdown_table = Table(breakdown_data, colWidths=[90 * mm, 60 * mm])
+    breakdown_table.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a2e")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+        ])
+    )
+    elements.append(breakdown_table)
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph("Thank you for using our truck parking service.", styles["Normal"]))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def export_sessions_to_pdf(
     sessions: Sequence[ParkingSession], from_date: date, to_date: date
 ) -> bytes:

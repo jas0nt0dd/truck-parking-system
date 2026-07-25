@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { fetchHistory } from "@/lib/sessions";
-import { formatDateTime, formatDuration, formatCurrency } from "@/lib/utils";
+import { downloadBillPdf, fetchHistory, sendBillLink } from "@/lib/sessions";
+import { formatDateTime, formatDuration } from "@/lib/utils";
 import { apiErrorMessage } from "@/lib/api";
 
 interface SessionRow {
@@ -27,6 +27,8 @@ export default function GatekeeperHistoryPage() {
   const [driverMobile, setDriverMobile] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
   const PAGE_SIZE = 20;
 
@@ -46,6 +48,42 @@ export default function GatekeeperHistoryPage() {
       setError(apiErrorMessage(err, "Could not load history"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSendBillLink(sessionId: string) {
+    setActionLoading(true);
+    setActiveActionId(sessionId);
+    setError(null);
+    try {
+      await sendBillLink(sessionId);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not send bill link"));
+    } finally {
+      setActionLoading(false);
+      setActiveActionId(null);
+    }
+  }
+
+  async function handleDownloadBill(sessionId: string, truckNumber: string) {
+    setActionLoading(true);
+    setActiveActionId(sessionId);
+    setError(null);
+    try {
+      const blob = await downloadBillPdf(sessionId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `truckpark_bill_${truckNumber}_${sessionId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(apiErrorMessage(err, "Could not download bill"));
+    } finally {
+      setActionLoading(false);
+      setActiveActionId(null);
     }
   }
 
@@ -112,6 +150,28 @@ export default function GatekeeperHistoryPage() {
                   {formatDuration(row.duration_hours)}
                 </div>
               </div>
+              {row.status === "exited" && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {row.payment_status === "pending" && (
+                    <button
+                      type="button"
+                      onClick={() => handleSendBillLink(row.id)}
+                      disabled={actionLoading && activeActionId === row.id}
+                      className="rounded-lg border border-yard-200 bg-yard-50 px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
+                    >
+                      {actionLoading && activeActionId === row.id ? "Sending…" : "Send Bill Link"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadBill(row.id, row.truck_number)}
+                    disabled={actionLoading && activeActionId === row.id}
+                    className="rounded-lg border border-yard-200 bg-transparent px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
+                  >
+                    {actionLoading && activeActionId === row.id ? "Downloading…" : "Download Bill"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

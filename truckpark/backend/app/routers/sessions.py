@@ -255,6 +255,8 @@ async def session_history(
 async def exit_truck(
     session_id: uuid.UUID,
     payload: ExitRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_gatekeeper_or_admin),
 ):
@@ -299,6 +301,10 @@ async def exit_truck(
     db.add(payment)
     await db.flush()
     await db.refresh(session, attribute_names=["payment", "truck"])
+
+    if payload.send_notification:
+        bill_url = request.url_for("payment_bill", session_id=str(session.id))
+        background_tasks.add_task(_send_pending_bill_notification_bg, session.id, bill_url)
 
     return ExitResponse(
         session=SessionOut.model_validate(session),

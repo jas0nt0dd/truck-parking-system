@@ -100,6 +100,16 @@ export async function markPaid(
   return data;
 }
 
+export async function sendBillLink(sessionId: string): Promise<ParkingSession> {
+  const { data } = await api.post(`/payments/${sessionId}/send-bill`);
+  return data;
+}
+
+export async function downloadBillPdf(sessionId: string): Promise<Blob> {
+  const response = await api.get(`/payments/${sessionId}/bill`, { responseType: "blob" });
+  return response.data as Blob;
+}
+
 export async function uploadPhoto(file: File): Promise<string> {
   const form = new FormData();
   form.append("file", file);
