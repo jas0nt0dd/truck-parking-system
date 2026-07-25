@@ -305,10 +305,11 @@ async def preview_exit(
     rules_result = await db.execute(select(BillingRule).where(*rule_filters))
     rules = rules_result.scalars().all()
 
-    try:
-        amount, breakdown = calculate_charge(dur_hours, rules)
-    except BillingError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    amount, breakdown = _calculate_exit_charge(
+        dur_hours,
+        rules,
+        allow_pending_on_error=True,
+    )
 
     return ExitResponse(
         session=SessionOut.model_validate(session),
@@ -334,6 +335,10 @@ def _calculate_exit_charge(
     try:
         return calculate_charge(duration_hours, rules)
     except BillingError:
+        if allow_pending_on_error:
+            return Decimal("0.00"), []
+        raise
+    except Exception:
         if allow_pending_on_error:
             return Decimal("0.00"), []
         raise
