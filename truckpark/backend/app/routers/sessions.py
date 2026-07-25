@@ -298,18 +298,23 @@ async def preview_exit(
 
     dur_hours = duration_hours(session.entry_time, utc_now())
 
-    rule_filters = [BillingRule.is_active == True]  # noqa: E712
-    rule_scope = tenant_filter(BillingRule, current_user)
-    if rule_scope is not None:
-        rule_filters.append(or_(BillingRule.tenant_id.is_(None), rule_scope))
-    rules_result = await db.execute(select(BillingRule).where(*rule_filters))
-    rules = rules_result.scalars().all()
+    try:
+        rule_filters = [BillingRule.is_active == True]  # noqa: E712
+        rule_scope = tenant_filter(BillingRule, current_user)
+        if rule_scope is not None:
+            rule_filters.append(or_(BillingRule.tenant_id.is_(None), rule_scope))
+        rules_result = await db.execute(select(BillingRule).where(*rule_filters))
+        rules = rules_result.scalars().all()
 
-    amount, breakdown = _calculate_exit_charge(
-        dur_hours,
-        rules,
-        allow_pending_on_error=True,
-    )
+        amount, breakdown = _calculate_exit_charge(
+            dur_hours,
+            rules,
+            allow_pending_on_error=True,
+        )
+    except Exception:
+        logger.exception("Preview exit charge calculation failed for session %s", session_id)
+        amount = Decimal("0.00")
+        breakdown = []
 
     return ExitResponse(
         session=SessionOut.model_validate(session),
