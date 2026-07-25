@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Banknote, Smartphone, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { downloadBillPdf, exitSession, previewExit, sendBillLink, ExitResponse, SessionSearchItem } from "@/lib/sessions";
+import { downloadBillPdf, exitPendingSession, exitSession, previewExit, sendBillLink, ExitResponse, SessionSearchItem } from "@/lib/sessions";
 import { formatCurrency, formatDateTime, formatDuration, cn } from "@/lib/utils";
 import { apiErrorMessage } from "@/lib/api";
 
@@ -67,7 +67,7 @@ export function TruckExitDetails({
     setError(null);
     try {
       if (!done) {
-        await exitSession(sessionItem.id, undefined, undefined, false);
+        await exitPendingSession(sessionItem.id);
         setDone(true);
         setTimeout(onComplete, 2000);
       }
@@ -83,7 +83,7 @@ export function TruckExitDetails({
     setSubmitting(true);
     setError(null);
     try {
-      await exitSession(sessionItem.id, undefined, undefined, true);
+      await exitPendingSession(sessionItem.id);
       setDone(true);
       setTimeout(onComplete, 2000);
     } catch (err) {
@@ -98,7 +98,7 @@ export function TruckExitDetails({
     setError(null);
     try {
       if (!done) {
-        await exitSession(sessionItem.id, undefined, undefined, false);
+        await exitPendingSession(sessionItem.id);
         setDone(true);
         setTimeout(onComplete, 2000);
       }

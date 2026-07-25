@@ -97,6 +97,11 @@ export async function exitSession(
   return data;
 }
 
+export async function exitPendingSession(sessionId: string): Promise<ExitResponse> {
+  const { data } = await api.post(`/sessions/${sessionId}/exit-pending`);
+  return data;
+}
+
 export async function previewExit(sessionId: string): Promise<ExitResponse> {
   const { data } = await api.post(`/sessions/${sessionId}/preview-exit`);
   return data;
