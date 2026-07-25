@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, time, timezone
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
@@ -25,7 +26,7 @@ from app.schemas.session import (
     SessionSearchItem,
 )
 from app.services.billing import BillingError, calculate_charge
-from app.services.messaging import notify_entry
+from app.services.messaging import notify_entry, notify_exit, notify_pending_bill
 from app.utils.logging import get_logger
 from app.utils.time import duration_hours, utc_now
 
@@ -50,6 +51,28 @@ async def _send_entry_notification_bg(session_id: uuid.UUID) -> None:
             await db.commit()
         except Exception:  # noqa: BLE001
             logger.exception("Background entry notification failed")
+            await db.rollback()
+
+
+async def _send_bill_notification_bg(session_id: uuid.UUID, bill_url: str) -> None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(ParkingSession)
+            .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
+            .where(ParkingSession.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None or session.payment is None:
+            return
+        try:
+            if session.payment.payment_status == PaymentStatus.paid:
+                payment_mode = session.payment.payment_mode.value if session.payment.payment_mode else "Paid"
+                await notify_exit(db, session, session.truck, session.payment.amount, payment_mode)
+            else:
+                await notify_pending_bill(db, session, session.truck, bill_url)
+            await db.commit()
+        except Exception:  # noqa: BLE001
+            logger.exception("Background bill notification failed")
             await db.rollback()
 
 
@@ -303,6 +326,19 @@ def _build_billing_rules(db: AsyncSession, current_user: User):
     return db.execute(select(BillingRule).where(*rule_filters))
 
 
+def _calculate_exit_charge(
+    duration_hours: float,
+    rules: list[BillingRule],
+    allow_pending_on_error: bool = False,
+) -> tuple[Decimal, list[dict]]:
+    try:
+        return calculate_charge(duration_hours, rules)
+    except BillingError:
+        if allow_pending_on_error:
+            return Decimal("0.00"), []
+        raise
+
+
 async def _finalize_exit(
     session: ParkingSession,
     payload: ExitRequest,
@@ -319,7 +355,11 @@ async def _finalize_exit(
     dur_hours = duration_hours(session.entry_time, session.exit_time)
     rules_result = await _build_billing_rules(db, current_user)
     rules = rules_result.scalars().all()
-    amount, breakdown = calculate_charge(dur_hours, rules)
+    amount, breakdown = _calculate_exit_charge(
+        dur_hours,
+        rules,
+        allow_pending_on_error=(payload.payment_mode is None),
+    )
 
     payment = Payment(
         tenant_id=current_user.tenant_id,
@@ -370,43 +410,6 @@ async def exit_truck(
     if session.status == SessionStatus.exited:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session already exited")
 
-    session.exit_time = utc_now()
-    session.exit_photo_url = payload.exit_photo_url
-    session.status = SessionStatus.exited
-    session.exit_gatekeeper_id = current_user.id
-
-    dur_hours = duration_hours(session.entry_time, session.exit_time)
-
-    rule_filters = [BillingRule.is_active == True]  # noqa: E712
-    rule_scope = tenant_filter(BillingRule, current_user)
-    if rule_scope is not None:
-        rule_filters.append(or_(BillingRule.tenant_id.is_(None), rule_scope))
-    rules_result = await db.execute(select(BillingRule).where(*rule_filters))
-    rules = rules_result.scalars().all()
-
-    try:
-        amount, breakdown = calculate_charge(dur_hours, rules)
-    except BillingError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-
-    payment = Payment(
-        tenant_id=current_user.tenant_id,
-        session_id=session.id,
-        amount=amount,
-        payment_mode=payload.payment_mode,
-        payment_status=(PaymentStatus.paid if payload.payment_mode in ("cash", "upi") else PaymentStatus.pending),
-        paid_at=utc_now() if payload.payment_mode in ("cash", "upi") else None,
-        gatekeeper_id=current_user.id if payload.payment_mode in ("cash", "upi") else None,
-        billing_breakdown=breakdown,
-    )
-    db.add(payment)
-    await db.flush()
-    await db.refresh(session, attribute_names=["payment", "truck"])
-
-    if payload.send_notification:
-        bill_url = request.url_for("payment_bill", session_id=str(session.id))
-        background_tasks.add_task(_send_bill_notification_bg, session.id, bill_url)
-
     return await _finalize_exit(session, payload, request, background_tasks, db, current_user)
 
 
@@ -430,5 +433,5 @@ async def exit_truck_pending(
     if session.status == SessionStatus.exited:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Session already exited")
 
-    payload = ExitRequest(send_notification=False)
+    payload = ExitRequest(payment_mode=None, send_notification=False)
     return await _finalize_exit(session, payload, request, background_tasks, db, current_user)
