@@ -278,7 +278,7 @@ async def preview_exit(
     rule_filters = [BillingRule.is_active == True]  # noqa: E712
     rule_scope = tenant_filter(BillingRule, current_user)
     if rule_scope is not None:
-        rule_filters.append(rule_scope)
+        rule_filters.append(or_(BillingRule.tenant_id.is_(None), rule_scope))
     rules_result = await db.execute(select(BillingRule).where(*rule_filters))
     rules = rules_result.scalars().all()
 
@@ -326,7 +326,7 @@ async def exit_truck(
     rule_filters = [BillingRule.is_active == True]  # noqa: E712
     rule_scope = tenant_filter(BillingRule, current_user)
     if rule_scope is not None:
-        rule_filters.append(rule_scope)
+        rule_filters.append(or_(BillingRule.tenant_id.is_(None), rule_scope))
     rules_result = await db.execute(select(BillingRule).where(*rule_filters))
     rules = rules_result.scalars().all()
 

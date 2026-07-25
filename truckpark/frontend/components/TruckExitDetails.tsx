@@ -156,14 +156,18 @@ export function TruckExitDetails({
         {loading && <p className="mt-4 text-sm text-yard-500">Calculating parking charges…</p>}
         {error && <p className="mt-4 rounded bg-warn-light px-3 py-2 text-sm text-warn">{error}</p>}
 
-        {exitData && (
+        {exitData ? (
           <>
             <div className="mt-4 rounded bg-yard-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-yard-500">Amount Due</p>
               <p className="mt-1 text-3xl font-bold text-yard-900">{formatCurrency(exitData.amount_due)}</p>
               <p className="mt-2 text-xs text-yard-500">
-                If you do not collect payment now, this exit will remain pending and a bill link will be available in history.
+                You can collect payment now or exit the truck as pending and send the bill later.
               </p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-warn/10 px-3 py-2 text-sm font-semibold text-warn">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-warn" />
+                Pending payment available
+              </div>
               <ul className="mt-3 space-y-0.5 text-xs text-yard-500">
                 {exitData.billing_breakdown.map((b, i) => (
                   <li key={i}>
@@ -228,6 +232,33 @@ export function TruckExitDetails({
                 loading={downloadingBill}
               >
                 Download Bill PDF
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-4 rounded bg-warn/10 p-3 text-sm text-warn-900">
+              <p className="font-semibold">Charge calculation unavailable</p>
+              <p className="mt-1 text-yard-500">The system could not calculate parking charges right now, but you can still exit the truck as pending and collect payment later.</p>
+            </div>
+            <div className="mt-5 grid gap-3">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                onClick={handleExitPending}
+                loading={submitting}
+              >
+                Exit as Pending
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                onClick={handleSendBillLink}
+                loading={sendingLink}
+              >
+                Exit &amp; Send Bill Link
               </Button>
             </div>
           </>

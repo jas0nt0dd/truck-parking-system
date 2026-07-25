@@ -16,13 +16,11 @@ from app.models.mixins import TimestampMixin, UUIDPKMixin
 class PaymentMode(str, enum.Enum):
     cash = "cash"
     upi = "upi"
-    credit = "credit"
 
 
 class PaymentStatus(str, enum.Enum):
     paid = "paid"
     pending = "pending"
-    credit = "credit"
 
 
 class Payment(UUIDPKMixin, TimestampMixin, Base):
