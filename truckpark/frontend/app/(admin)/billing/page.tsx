@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { useAuth } from "@/lib/AuthContext";
 import {
   fetchBillingRules,
+  fetchTenants,
   createBillingRule,
   updateBillingRule,
   deleteBillingRule,
@@ -18,13 +20,16 @@ const EMPTY_FORM = { rule_name: "", from_hours: "", to_hours: "", charge: "", pr
 type FormState = typeof EMPTY_FORM;
 
 export default function BillingPage() {
+  const { user: currentUser } = useAuth();
   const [rules,    setRules]    = useState<BillingRule[]>([]);
+  const [tenants,  setTenants]  = useState<Record<string, string>>({});
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing,  setEditing]  = useState<BillingRule | null>(null);
   const [form,     setForm]     = useState<FormState>(EMPTY_FORM);
   const [saving,   setSaving]   = useState(false);
+  const columnCount = 7 + (currentUser?.is_root && !currentUser?.tenant_id ? 1 : 0);
 
   async function load() {
     setLoading(true);
@@ -34,6 +39,21 @@ export default function BillingPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!currentUser?.is_root || currentUser?.tenant_id) return;
+
+    async function loadTenants() {
+      try {
+        const tenantList = await fetchTenants();
+        setTenants(Object.fromEntries(tenantList.map((tenant) => [tenant.id, tenant.name])));
+      } catch {
+        setTenants({});
+      }
+    }
+
+    loadTenants();
+  }, [currentUser]);
 
   function openCreate() {
     setEditing(null);
@@ -148,6 +168,9 @@ export default function BillingPage() {
           <thead>
             <tr className="border-b border-yard-100 text-xs font-semibold uppercase tracking-wide text-yard-500">
               <th className="px-4 py-3 text-left">Rule Name</th>
+              {currentUser?.is_root && !currentUser?.tenant_id && (
+                <th className="px-4 py-3 text-left">Tenant</th>
+              )}
               <th className="px-4 py-3 text-left">From (hrs)</th>
               <th className="px-4 py-3 text-left">To (hrs)</th>
               <th className="px-4 py-3 text-left">Charge</th>
@@ -160,17 +183,22 @@ export default function BillingPage() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i} className="border-b border-yard-50">
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: columnCount }).map((_, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded bg-yard-100" /></td>
                   ))}
                 </tr>
               ))
             ) : rules.length === 0 ? (
-              <tr><td colSpan={7} className="py-10 text-center text-yard-500">No billing rules yet. Add one above.</td></tr>
+              <tr><td colSpan={columnCount} className="py-10 text-center text-yard-500">No billing rules yet. Add one above.</td></tr>
             ) : (
               rules.map((rule) => (
                 <tr key={rule.id} className="border-b border-yard-50 hover:bg-yard-50">
                   <td className="px-4 py-3 font-medium text-yard-900">{rule.rule_name}</td>
+                  {currentUser?.is_root && !currentUser?.tenant_id && (
+                    <td className="px-4 py-3 text-yard-700">
+                      {rule.tenant_id ? tenants[rule.tenant_id] ?? rule.tenant_id : "Platform"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-yard-700">{rule.from_hours}</td>
                   <td className="px-4 py-3 text-yard-700">{rule.to_hours ?? "Open-ended"}</td>
                   <td className="px-4 py-3 font-semibold text-yard-900">₹{rule.charge}</td>

@@ -50,29 +50,39 @@ def calculate_charge(
     def _calculate(rules_to_apply):
         total = Decimal("0.00")
         breakdown: list[dict] = []
+        duration_amount = Decimal(str(duration_hours))
 
-        for rule in sorted(rules_to_apply, key=lambda r: r.priority):
+        finite_rules = [r for r in rules_to_apply if r.to_hours is not None]
+        open_rule = next((r for r in rules_to_apply if r.to_hours is None), None)
+
+        selected_rule = None
+        for rule in sorted(finite_rules, key=lambda r: r.priority):
             from_hours = Decimal(str(rule.from_hours))
-            charge = Decimal(str(rule.charge))
+            to_hours = Decimal(str(rule.to_hours))
 
-            duration_amount = Decimal(str(duration_hours))
-            if rule.to_hours is not None:
-                to_hours = Decimal(str(rule.to_hours))
-                if (from_hours == Decimal("0.00") and duration_amount == Decimal("0.00")) or (
-                    from_hours < duration_amount <= to_hours
-                ):
-                    total += charge
-                    breakdown.append({"rule_name": rule.rule_name, "amount": str(charge)})
-            else:
-                # Open-ended rule, e.g. "Additional Day" beyond from_hours.
-                if duration_amount > from_hours:
-                    extra_hours = duration_amount - from_hours
-                    days = math.ceil(float(extra_hours) / 24)
-                    extra = (charge * days).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                    total += extra
-                    breakdown.append(
-                        {"rule_name": rule.rule_name, "amount": str(extra), "days": days}
-                    )
+            if from_hours == Decimal("0.00") and duration_amount == Decimal("0.00"):
+                selected_rule = rule
+                break
+            if from_hours < duration_amount <= to_hours:
+                selected_rule = rule
+                break
+
+        if selected_rule is not None:
+            charge = Decimal(str(selected_rule.charge))
+            total += charge
+            breakdown.append({"rule_name": selected_rule.rule_name, "amount": str(charge)})
+        elif open_rule is not None and duration_amount > Decimal(str(open_rule.from_hours)):
+            if finite_rules:
+                last_finite = sorted(finite_rules, key=lambda r: r.priority)[-1]
+                charge = Decimal(str(last_finite.charge))
+                total += charge
+                breakdown.append({"rule_name": last_finite.rule_name, "amount": str(charge)})
+
+            extra_hours = duration_amount - Decimal(str(open_rule.from_hours))
+            days = math.ceil(float(extra_hours) / 24)
+            extra = (Decimal(str(open_rule.charge)) * days).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total += extra
+            breakdown.append({"rule_name": open_rule.rule_name, "amount": str(extra), "days": days})
 
         return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), breakdown
 

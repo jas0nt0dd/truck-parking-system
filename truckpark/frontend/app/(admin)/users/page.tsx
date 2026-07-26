@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
 import {
   fetchUsers,
+  fetchTenants,
   createUser,
   setUserStatus,
   resetUserPassword,
@@ -21,8 +22,10 @@ const EMPTY_FORM = { name: "", mobile: "", email: "", role: "gatekeeper" as cons
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const [users,    setUsers]    = useState<ManagedUser[]>([]);
+  const [tenants,  setTenants]  = useState<Record<string, string>>({});
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  const columnCount = 6 + (currentUser?.is_root && !currentUser?.tenant_id ? 1 : 0);
   const [showForm, setShowForm] = useState(false);
   const [form,     setForm]     = useState(EMPTY_FORM);
   const [saving,   setSaving]   = useState(false);
@@ -38,6 +41,21 @@ export default function UsersPage() {
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!currentUser?.is_root || currentUser?.tenant_id) return;
+
+    async function loadTenants() {
+      try {
+        const tenantList = await fetchTenants();
+        setTenants(Object.fromEntries(tenantList.map((tenant) => [tenant.id, tenant.name])));
+      } catch {
+        setTenants({});
+      }
+    }
+
+    loadTenants();
+  }, [currentUser]);
 
   function set<K extends keyof typeof EMPTY_FORM>(k: K, v: typeof EMPTY_FORM[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -183,6 +201,9 @@ export default function UsersPage() {
           <thead>
             <tr className="border-b border-yard-100 text-xs font-semibold uppercase tracking-wide text-yard-500">
               <th className="px-4 py-3 text-left">Name</th>
+              {currentUser?.is_root && !currentUser?.tenant_id && (
+                <th className="px-4 py-3 text-left">Tenant</th>
+              )}
               <th className="px-4 py-3 text-left">Mobile</th>
               <th className="px-4 py-3 text-left">Role</th>
               <th className="px-4 py-3 text-left">Status</th>
@@ -194,19 +215,24 @@ export default function UsersPage() {
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={i} className="border-b border-yard-50">
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: columnCount }).map((_, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded bg-yard-100" /></td>
                   ))}
                 </tr>
               ))
             ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="py-10 text-center text-yard-500">No users yet.</td></tr>
+              <tr><td colSpan={columnCount} className="py-10 text-center text-yard-500">No users yet.</td></tr>
             ) : (
               users.map((u) => (
                 <tr key={u.id} className="border-b border-yard-50 hover:bg-yard-50">
                   <td className="px-4 py-3 font-medium text-yard-900">
                     {u.name} {u.is_root && <span className="ml-1 text-xs text-signal">(Root)</span>}
                   </td>
+                  {currentUser?.is_root && !currentUser?.tenant_id && (
+                    <td className="px-4 py-3 text-yard-700">
+                      {u.tenant_id ? tenants[u.tenant_id] ?? u.tenant_id : "Platform"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-yard-700">{u.mobile}</td>
                   <td className="px-4 py-3 capitalize text-yard-700">{u.role}</td>
                   <td className="px-4 py-3">

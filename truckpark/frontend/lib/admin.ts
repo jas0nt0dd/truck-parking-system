@@ -31,6 +31,7 @@ export async function fetchLiveSessions(): Promise<LiveSessionItem[]> {
 // --- Billing rules ---
 export interface BillingRule {
   id: string;
+  tenant_id?: string | null;
   rule_name: string;
   from_hours: string;
   to_hours?: string | null;

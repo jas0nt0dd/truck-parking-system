@@ -44,14 +44,16 @@ def test_second_bracket():
 
 def test_open_ended_one_extra_day():
     total, breakdown = calculate_charge(30, DEFAULT_RULES)  # 6 hrs past 24h -> 1 day
-    assert total == Decimal("100.00")
-    assert breakdown[0]["days"] == 1
+    assert total == Decimal("250.00")
+    assert breakdown[-1]["days"] == 1
+    assert breakdown[0]["rule_name"] == "12-24 Hours"
 
 
 def test_open_ended_two_extra_days():
     total, breakdown = calculate_charge(50, DEFAULT_RULES)  # 26 hrs past 24h -> ceil(26/24)=2 days
-    assert total == Decimal("200.00")
-    assert breakdown[0]["days"] == 2
+    assert total == Decimal("350.00")
+    assert breakdown[-1]["days"] == 2
+    assert breakdown[0]["rule_name"] == "12-24 Hours"
 
 
 def test_no_active_rules_uses_default_fallback():
