@@ -157,7 +157,7 @@ class MSG91WhatsAppProvider:
     async def send_exit_message(
         self, mobile: str, truck_number: str, parking_name: str,
         entry_time_str: str, exit_time_str: str, duration_str: str,
-        amount: Decimal, payment_mode: str,
+        amount: Decimal, payment_mode: str, bill_link: str = "",
     ) -> dict:
         variables = (
             truck_number,
@@ -167,6 +167,7 @@ class MSG91WhatsAppProvider:
             duration_str,
             str(amount),
             payment_mode,
+            bill_link,
         )
         return await self._send(self.config.exit_template, mobile, variables)
 
@@ -229,7 +230,8 @@ async def notify_entry(db: AsyncSession, session: ParkingSession, truck: Truck) 
 
 
 async def notify_exit(
-    db: AsyncSession, session: ParkingSession, truck: Truck, amount: Decimal, payment_mode: str
+    db: AsyncSession, session: ParkingSession, truck: Truck, amount: Decimal, payment_mode: str,
+    bill_link: str = "",
 ) -> None:
     if session.exit_time is None:
         await _record_notification(
@@ -265,6 +267,13 @@ async def notify_exit(
             dur_str,
             amount,
             payment_mode,
+            bill_link,
+        )
+        logger.info(
+            "Exit WhatsApp sent for session %s using template %s and bill link %s",
+            session.id,
+            config.exit_template,
+            bill_link,
         )
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.exit,
@@ -314,7 +323,14 @@ async def notify_pending_bill(
             exit_time_str,
             dur_str,
             payment.amount,
-            f"Pending — pay here: {bill_url}",
+            "Pending",
+            bill_url,
+        )
+        logger.info(
+            "Pending bill WhatsApp sent for session %s using template %s and bill link %s",
+            session.id,
+            config.exit_template,
+            bill_url,
         )
         await _record_notification(
             db, session.id, truck.driver_mobile, NotificationType.exit,

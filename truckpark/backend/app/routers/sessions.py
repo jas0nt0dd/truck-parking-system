@@ -67,7 +67,7 @@ async def _send_bill_notification_bg(session_id: uuid.UUID, bill_url: str) -> No
         try:
             if session.payment.payment_status == PaymentStatus.paid:
                 payment_mode = session.payment.payment_mode.value if session.payment.payment_mode else "Paid"
-                await notify_exit(db, session, session.truck, session.payment.amount, payment_mode)
+                await notify_exit(db, session, session.truck, session.payment.amount, payment_mode, bill_url)
             else:
                 await notify_pending_bill(db, session, session.truck, bill_url)
             await db.commit()
@@ -381,9 +381,9 @@ async def _finalize_exit(
         session_id=session.id,
         amount=amount,
         payment_mode=payload.payment_mode,
-        payment_status=(PaymentStatus.paid if payload.payment_mode in ("cash", "upi") else PaymentStatus.pending),
-        paid_at=utc_now() if payload.payment_mode in ("cash", "upi") else None,
-        gatekeeper_id=current_user.id if payload.payment_mode in ("cash", "upi") else None,
+        payment_status=(PaymentStatus.paid if payload.payment_mode is not None else PaymentStatus.pending),
+        paid_at=utc_now() if payload.payment_mode is not None else None,
+        gatekeeper_id=current_user.id if payload.payment_mode is not None else None,
         billing_breakdown=breakdown,
     )
     db.add(payment)

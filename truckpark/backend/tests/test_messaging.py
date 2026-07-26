@@ -98,13 +98,14 @@ def test_send_builds_exit_components_in_placeholder_order(monkeypatch):
                 "4 hours 15 minutes",
                 "150",
                 "cash",
+                "https://truckparking.example/bill/abc123",
             ),
         )
     )
 
     request = captured_clients[0].requests[0]
     components = request["json"]["payload"]["template"]["to_and_components"][0]["components"]
-    assert list(components.keys()) == ["body_1", "body_2", "body_3", "body_4", "body_5", "body_6", "body_7"]
+    assert list(components.keys()) == ["body_1", "body_2", "body_3", "body_4", "body_5", "body_6", "body_7", "body_8"]
     assert [component["value"] for component in components.values()] == [
         "TN01AB1234",
         "Smart Truck Parking",
@@ -113,6 +114,7 @@ def test_send_builds_exit_components_in_placeholder_order(monkeypatch):
         "4 hours 15 minutes",
         "150",
         "cash",
+        "https://truckparking.example/bill/abc123",
     ]
 
 

@@ -22,7 +22,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 logger = get_logger(__name__)
 
 
-async def _send_exit_notification_bg(session_id: uuid.UUID, amount, payment_mode: str) -> None:
+async def _send_exit_notification_bg(session_id: uuid.UUID, amount, payment_mode: str, bill_url: str) -> None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(ParkingSession)
@@ -33,7 +33,12 @@ async def _send_exit_notification_bg(session_id: uuid.UUID, amount, payment_mode
         if session is None:
             return
         try:
-            await notify_exit(db, session, session.truck, amount, payment_mode)
+            logger.info(
+                "Sending background exit WhatsApp for session %s with bill URL %s",
+                session_id,
+                bill_url,
+            )
+            await notify_exit(db, session, session.truck, amount, payment_mode, bill_url)
             await db.commit()
         except Exception:  # noqa: BLE001
             logger.exception("Background exit notification failed")
@@ -53,8 +58,18 @@ async def _send_bill_notification_bg(session_id: uuid.UUID, bill_url: str) -> No
         try:
             if session.payment.payment_status == PaymentStatus.paid:
                 payment_mode = session.payment.payment_mode.value if session.payment.payment_mode else "Paid"
-                await notify_exit(db, session, session.truck, session.payment.amount, payment_mode)
+                logger.info(
+                    "Background bill notification: paid exit for session %s, sending WhatsApp template %s",
+                    session.id,
+                    config.exit_template,
+                )
+                await notify_exit(db, session, session.truck, session.payment.amount, payment_mode, bill_url)
             else:
+                logger.info(
+                    "Background bill notification: pending exit for session %s, sending bill URL %s",
+                    session.id,
+                    bill_url,
+                )
                 await notify_pending_bill(db, session, session.truck, bill_url)
             await db.commit()
         except Exception:  # noqa: BLE001
@@ -144,7 +159,6 @@ async def send_bill_link(
 async def download_bill(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_gatekeeper_or_admin),
 ):
     result = await db.execute(
         select(ParkingSession)
@@ -154,8 +168,6 @@ async def download_bill(
     session = result.scalar_one_or_none()
     if session is None or session.payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
-    if current_user is not None:
-        require_same_tenant(session, current_user)
     if session.status != SessionStatus.exited:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bill available only for exited sessions")
 

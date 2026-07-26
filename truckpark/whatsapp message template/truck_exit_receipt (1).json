@@ -13,7 +13,7 @@
       "default_variables": null,
       "code": [
         {
-          "text": "Truck {{1}} has exited {{2}}.\nEntry time: {{3}}\nExit time: {{4}}\nDuration: {{5}}\nAmount paid: Rs. {{6}}\nPayment mode: {{7}}\nThank you.",
+          "text": "Truck {{1}} has exited {{2}}.\nEntry time: {{3}}\nExit time: {{4}}\nDuration: {{5}}\nAmount paid: Rs. {{6}}\nPayment mode: {{7}}\nBill link: {{8}}\nThank you.",
           "type": "BODY",
           "example": {
             "body_text": [
@@ -24,7 +24,8 @@
                 "09/07/2026 07:45 PM",
                 "4 hours 15 minutes",
                 "150",
-                "cash"
+                "cash",
+                "https://truckparking.example/bill/abc123"
               ]
             ]
           }
