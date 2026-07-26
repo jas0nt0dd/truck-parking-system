@@ -136,38 +136,35 @@ export function TruckExitSearch({ onSelect }: { onSelect: (session: SessionSearc
               </div>
             </button>
           ))
+        ) : loadingLive ? (
+          <p className="py-6 text-center text-sm text-yard-500">Loading active trucks…</p>
+        ) : liveItems.length === 0 ? (
+          <p className="py-6 text-center text-sm text-yard-500">No trucks currently inside</p>
         ) : (
-          // live items view
-          (loadingLive ? (
-            <p className="py-6 text-center text-sm text-yard-500">Loading active trucks…</p>
-          ) : liveItems.length === 0 ? (
-            <p className="py-6 text-center text-sm text-yard-500">No trucks currently inside</p>
-          ) : (
-            // apply filter
-            [...liveItems]
-              .sort((a, b) => {
-                if (filter === "longest") return b.duration_hours - a.duration_hours;
-                if (filter === "recent") return new Date(b.entry_time).getTime() - new Date(a.entry_time).getTime();
-                return 0;
-              })
-              .filter((it) => (filter === "pending" ? it.payment_status === "pending" : true))
-              .map((it) => (
-                <button
-                  key={it.session_id}
-                  onClick={() => handleSelectLive(it.session_id)}
-                  className="card flex w-full items-center justify-between p-3.5 text-left transition active:scale-[0.99]"
-                >
-                  <div>
-                    <p className="plate text-base font-bold text-yard-900">{it.truck_number}</p>
-                    <p className="text-sm text-yard-500">{it.driver_mobile} · In: {formatDateTime(it.entry_time)}</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge status="inside">inside</Badge>
-                    <p className="mt-1 text-xs text-yard-500">{formatDuration(it.duration_hours)}</p>
-                  </div>
-                </button>
-              ))
-          ))}
+          [...liveItems]
+            .sort((a, b) => {
+              if (filter === "longest") return b.duration_hours - a.duration_hours;
+              if (filter === "recent") return new Date(b.entry_time).getTime() - new Date(a.entry_time).getTime();
+              return 0;
+            })
+            .filter((it) => (filter === "pending" ? it.payment_status === "pending" : true))
+            .map((it) => (
+              <button
+                key={it.session_id}
+                onClick={() => handleSelectLive(it.session_id)}
+                className="card flex w-full items-center justify-between p-3.5 text-left transition active:scale-[0.99]"
+              >
+                <div>
+                  <p className="plate text-base font-bold text-yard-900">{it.truck_number}</p>
+                  <p className="text-sm text-yard-500">{it.driver_mobile} · In: {formatDateTime(it.entry_time)}</p>
+                </div>
+                <div className="text-right">
+                  <Badge status="inside">inside</Badge>
+                  <p className="mt-1 text-xs text-yard-500">{formatDuration(it.duration_hours)}</p>
+                </div>
+              </button>
+            ))
+        )}
       </div>
     </div>
   );
