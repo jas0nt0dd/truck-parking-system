@@ -78,9 +78,15 @@ export async function fetchHistory(params: {
   to_date?: string;
   page?: number;
   page_size?: number;
+  payment_status?: "paid" | "pending" | "all";
 }) {
   const { data } = await api.get("/sessions/history", { params });
   return data as { items: SessionSearchItem[]; total: number; page: number; page_size: number };
+}
+
+export async function fetchSession(sessionId: string): Promise<ParkingSession> {
+  const { data } = await api.get(`/sessions/${sessionId}`);
+  return data as ParkingSession;
 }
 
 export async function exitSession(

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { downloadBillPdf, fetchHistory, markPaid, sendBillLink } from "@/lib/sessions";
+import { downloadBillPdf, fetchHistory, fetchSession, markPaid, sendBillLink } from "@/lib/sessions";
 import { formatCurrency, formatDateTime, formatDuration } from "@/lib/utils";
 import { apiErrorMessage } from "@/lib/api";
 
@@ -27,6 +27,9 @@ export default function GatekeeperHistoryPage() {
   const [page, setPage] = useState(1);
   const [truckNumber, setTruckNumber] = useState("");
   const [driverMobile, setDriverMobile] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "pending">("all");
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [expandedSessionData, setExpandedSessionData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -41,6 +44,7 @@ export default function GatekeeperHistoryPage() {
       const result = await fetchHistory({
         truck_number: truckNumber || undefined,
         driver_mobile: driverMobile || undefined,
+        payment_status: paymentFilter === "all" ? undefined : paymentFilter,
         page,
         page_size: PAGE_SIZE,
       });
@@ -109,6 +113,13 @@ export default function GatekeeperHistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, truckNumber, driverMobile]);
 
+  useEffect(() => {
+    // reload when payment filter changes
+    setPage(1);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentFilter]);
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -129,6 +140,19 @@ export default function GatekeeperHistoryPage() {
           type="tel"
           inputMode="numeric"
         />
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <label className="text-xs text-yard-500">Payment:</label>
+        <select
+          value={paymentFilter}
+          onChange={(e) => setPaymentFilter(e.target.value as any)}
+          className="rounded border px-2 py-1 text-sm"
+        >
+          <option value="all">All</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+        </select>
       </div>
 
       {error && <p className="mb-3 rounded bg-warn-light px-3 py-2 text-sm text-warn">{error}</p>}
@@ -220,6 +244,26 @@ export default function GatekeeperHistoryPage() {
               </div>
               {row.status === "exited" && (
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (expandedSessionId === row.id) {
+                        setExpandedSessionId(null);
+                        setExpandedSessionData(null);
+                        return;
+                      }
+                      setExpandedSessionId(row.id);
+                      try {
+                        const data = await fetchSession(row.id);
+                        setExpandedSessionData(data);
+                      } catch (err) {
+                        setError(apiErrorMessage(err, "Could not load session details"));
+                      }
+                    }}
+                    className="rounded-lg border border-yard-200 bg-transparent px-3 py-2 text-xs font-semibold text-yard-700 transition hover:bg-yard-100 disabled:opacity-50"
+                  >
+                    {expandedSessionId === row.id ? "Hide Details" : "See Inside Truck"}
+                  </button>
                   {row.payment_status === "pending" && (
                     <button
                       type="button"
@@ -248,6 +292,37 @@ export default function GatekeeperHistoryPage() {
                   >
                     {actionLoading && activeActionId === row.id ? "Downloading…" : "Download Bill"}
                   </button>
+                </div>
+              )}
+              {expandedSessionId === row.id && expandedSessionData && (
+                <div className="mt-3 rounded border border-yard-100 bg-white p-3 text-sm">
+                  <p className="font-semibold">Truck Details</p>
+                  <p className="text-xs">Driver: {expandedSessionData.truck.driver_name || expandedSessionData.truck.driver_mobile}</p>
+                  <p className="text-xs">Company: {expandedSessionData.truck.transport_company || "—"}</p>
+                  <p className="text-xs">Vehicle type: {expandedSessionData.truck.vehicle_type || "—"}</p>
+
+                  <div className="mt-2">
+                    <p className="font-semibold">Photos</p>
+                    <div className="flex gap-2 mt-1">
+                      {expandedSessionData.entry_photo_url && (
+                        <img src={expandedSessionData.entry_photo_url} alt="entry" className="h-24 w-24 rounded object-cover" />
+                      )}
+                      {expandedSessionData.exit_photo_url && (
+                        <img src={expandedSessionData.exit_photo_url} alt="exit" className="h-24 w-24 rounded object-cover" />
+                      )}
+                    </div>
+                  </div>
+
+                  {expandedSessionData.payment && expandedSessionData.payment.billing_breakdown && (
+                    <div className="mt-3">
+                      <p className="font-semibold">Billing Breakdown</p>
+                      <ul className="mt-1 list-disc pl-5 text-xs">
+                        {expandedSessionData.payment.billing_breakdown.map((b: any, i: number) => (
+                          <li key={i}>{b.rule_name}: {formatCurrency(b.amount)}{b.days ? ` — ${b.days} day(s)` : ""}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

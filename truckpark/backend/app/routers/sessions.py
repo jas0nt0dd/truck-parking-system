@@ -219,6 +219,7 @@ async def session_history(
     driver_mobile: Optional[str] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    payment_status: Optional[PaymentStatus] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -241,6 +242,9 @@ async def session_history(
         filters.append(ParkingSession.entry_time >= datetime.combine(from_date, time.min, tzinfo=timezone.utc))
     if to_date:
         filters.append(ParkingSession.entry_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc))
+    if payment_status is not None:
+        # Only include rows where a payment exists and matches the requested status
+        filters.append(Payment.payment_status == payment_status)
     if filters:
         base_query = base_query.where(and_(*filters))
 
@@ -276,6 +280,24 @@ async def session_history(
         )
 
     return PaginatedSessions(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/{session_id}", response_model=SessionOut)
+async def get_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_gatekeeper_or_admin),
+):
+    result = await db.execute(
+        select(ParkingSession)
+        .options(selectinload(ParkingSession.truck), selectinload(ParkingSession.payment))
+        .where(ParkingSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    require_same_tenant(session, current_user)
+    return SessionOut.model_validate(session)
 
 
 @router.post("/{session_id}/preview-exit", response_model=ExitResponse)
