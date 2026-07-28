@@ -114,6 +114,36 @@ We want a **simple, fast, mobile-first system** where:
 
 ---
 
+## 0. Keep-alive with GitHub Actions
+
+Rendering on Render can sleep when the app is idle. To keep the backend responsive, use a scheduled external ping to the `/health` endpoint.
+
+### How it works
+
+- The app already exposes `GET /health` in `truckpark/backend/app/main.py`
+- GitHub Actions can run on a schedule and request that endpoint
+- Each request is real external traffic, so Render treats the app as active
+- This is the recommended free option when you cannot run a local keeper service
+
+### What was added
+
+- `.github/workflows/keepalive.yml`
+- It is configured to run every 10 minutes
+- It sends a GET request to `RENDER_URL/health`
+
+### Setup
+
+1. Edit `.github/workflows/keepalive.yml`
+2. Replace `https://your-render-app.onrender.com` with your actual Render service URL
+
+### Notes
+
+- This keeps the app warm with scheduled traffic
+- It does not change the backend code or require a separate server
+- If Render permanently suspends the app on free tier, the action may not help until the service is restored
+
+---
+
 ## 2. Tech Stack
 
 ### 2.1 Frontend

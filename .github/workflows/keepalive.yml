@@ -1,0 +1,21 @@
+name: Keep Render Backend Warm
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_URL: https://your-render-app.onrender.com
+    steps:
+      - name: Wake Render backend
+        run: |
+          if [ -z "$RENDER_URL" ] || [ "$RENDER_URL" = "https://your-render-app.onrender.com" ]; then
+            echo "Please update .github/workflows/keepalive.yml with your Render service URL in RENDER_URL."
+            exit 1
+          fi
+          echo "Pinging Render health endpoint: $RENDER_URL/health"
+          curl -fsS "$RENDER_URL/health"
