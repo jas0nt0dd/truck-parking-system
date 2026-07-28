@@ -133,8 +133,9 @@ Rendering on Render can sleep when the app is idle. To keep the backend responsi
 
 ### Setup
 
-1. Edit `.github/workflows/keepalive.yml`
-2. Replace `https://your-render-app.onrender.com` with your actual Render service URL
+1. Go to GitHub Settings → Secrets and variables → Actions.
+2. Add a new repository secret named `RENDER_URL` with your actual Render service URL.
+3. The workflow will read that secret automatically from `.github/workflows/keepalive.yml`.
 
 ### Notes
 

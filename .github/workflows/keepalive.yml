@@ -9,12 +9,12 @@ jobs:
   keep-alive:
     runs-on: ubuntu-latest
     env:
-      RENDER_URL: https://truck-parking-system-htio.onrender.com
+      RENDER_URL: ${{ secrets.RENDER_URL }}
     steps:
       - name: Wake Render backend
         run: |
-          if [ -z "$RENDER_URL" ] || [ "$RENDER_URL" = "https://truck-parking-system-htio.onrender.com" ]; then
-            echo "Please update .github/workflows/keepalive.yml with your Render service URL in RENDER_URL."
+          if [ -z "$RENDER_URL" ]; then
+            echo "Set repository secret RENDER_URL to your Render service URL."
             exit 1
           fi
           echo "Pinging Render health endpoint: $RENDER_URL/health"
